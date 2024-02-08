@@ -10,8 +10,9 @@ import evaluate
 from transformers import GenerationConfig
 from transformers.integrations import WandbCallback
 
-API = "e845b522dd2be52f09a0b6b36051a1007fb1bda7"
-HF_TOKEN = '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'
+# Fill your own tokens
+API = ""
+HF_TOKEN = ''
 
 def wandb_setup(key = API):
     wandb.login(key=API)
