@@ -18,14 +18,10 @@ from utils.data_io import write_json as write_label
 import pandas as pd
 from trl import AutoModelForCausalLMWithValueHead
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from utils.files import (
+from utils.data_io import (
     BASE_DATA_DIR,
     BASE_CKPT_DIR,
     RESULT_DIR,
-    TABLES_PATH,
-    TRAIN_DATA_PATH,
-    TRAIN_LABEL_PATH,
-    VALID_DATA_PATH,
     DB_PATH,
     NEW_TRAIN_DIR,
     NEW_VALID_DIR,
@@ -43,6 +39,8 @@ set_seed(args)
 train_data, valid_data, test_data = build_dataset()
 CKPT_PATH = "" # path/to/checkpoint
 
+
+""" TODO: Fix this part... """
 if args.is_saved_ckpt:
 
     base_model_name = "meta-llama/Llama-2-7b-hf"

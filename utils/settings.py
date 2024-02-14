@@ -6,7 +6,6 @@ from functools import partial
 from tqdm.auto import tqdm
 # from pathlib import Path
 import torch
-import evaluate
 from transformers import GenerationConfig
 from transformers.integrations import WandbCallback
 import numpy as np
@@ -16,8 +15,10 @@ import random
 API = ""
 HF_TOKEN = ''
 
-def wandb_setup(key = API):
+def wandb_setup(args: argparse.Namespace, key = API):
     wandb.login(key=API)
+    # os.makedirs(wandb_path)
+    wandb.init(project=args.project_name, dir=args.wandb_dir)
     
 def huggingface_login(key=HF_TOKEN):
     login(token=HF_TOKEN)

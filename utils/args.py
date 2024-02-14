@@ -10,7 +10,7 @@ def add_default_args(parser: argparse.ArgumentParser):
     parser.add_argument("--valid_data_dir", type=str, help="valid data path")
     parser.add_argument("--test_data_dir", type=str, help="test data path")
     parser.add_argument("--tables_file", type=str, help="table schema path")
-
+    parser.add_argument("--wandb_dir", type=str, default="./", help="wandb log directory")
     parser.add_argument("--output_dir", type=str, default="outputs", help="output directory")
     parser.add_argument("--output_file", type=str, default="prediction_raw.json", help="output file name")
 
