@@ -7,9 +7,8 @@ import os
 from tqdm.auto import tqdm
 import wandb
 import random
-from huggingface_hub import login
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from utils.tools_setup import wandb_setup, huggingface_login
+from utils.settings import wandb_setup, huggingface_login
 from peft import LoraConfig, PeftConfig, PeftModel
 from sft import add_default_args, set_seed, update_args, build_dataset
 import torch
@@ -19,21 +18,23 @@ import sqlite3
 import pandas as pd
 from trl import PPOConfig, PPOTrainer, AutoModelForCausalLMWithValueHead
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from utils.files import (
+from utils.data_io import (
     BASE_DATA_DIR,
     BASE_CKPT_DIR,
-    TABLES_PATH,
-    TRAIN_DATA_PATH,
-    TRAIN_LABEL_PATH,
-    VALID_DATA_PATH,
-    DB_PATH,
-    NEW_TRAIN_DIR,
-    NEW_VALID_DIR,
-    NEW_TEST_DIR
 )
+"""
+python ppo.py \
+    --train_type=PPO \
+    --project_name=ehrsql-2024-ppo \
+    --train_epochs=3 \
+    --train_batch_size=4 \
+    --model_name=meta-llama/Llama-2-7b-hf \
+    --learning_rate=1e-3 \
+    --load_checkpoint_path=/path/to/adapter \
+    --bf16=1
+"""
 
-BASE_MODEL_DIR = f'{BASE_CKPT_DIR}/SFT'
-WANDB_PROJ_NAME = 'ehrsql-2024-ppo'
+
 parser = argparse.ArgumentParser()
 parser = add_default_args(parser)
 args = parser.parse_args()
@@ -44,10 +45,11 @@ args.output_dir = f'{BASE_CKPT_DIR}/{args.train_type}'
 # Set random seed for reproducibility
 set_seed(args)
 
+# WandB & Huggingface setting
+wandb_setup(args)
+huggingface_login()
 
-
-# WandB setting
-os.environ["WANDB_PROJECT"] = WANDB_PROJ_NAME  # name your W&B project
+os.environ["WANDB_PROJECT"] = args.project_name  # name your W&B project
 os.environ["WANDB_LOG_MODEL"] = "checkpoint"  # log all model checkpoints
 
 # Configure CUDA settings
@@ -137,7 +139,7 @@ ppo_config = PPOConfig(
 model_config = dict(
     device_map={"":0},
     trust_remote_code=True,
-    torch_dtype=torch.bfloat16,
+    torch_dtype=torch.bfloat16 if args.bf16 else "auto",
     use_cache=False,
 )
 
@@ -150,14 +152,20 @@ peft_parameters = LoraConfig(
     target_modules=["q_proj", "k_proj","v_proj","o_proj"]
 )
 
+### NOTE: args.load_checkpoint_path contains both adapter config and tokenizer config!
 
-ckpt_path = f"" # contains both adapter config and tokenizer config
-
-tokenizer = AutoTokenizer.from_pretrained(ckpt_path, padding_side='left')
+tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path, padding_side='left')
 model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
-model = PeftModel.from_pretrained(model, ckpt_path, is_trainable=True)
+model = PeftModel.from_pretrained(model, args.load_checkpoint_path, is_trainable=True)
 
 model.merge_and_unload()
+"""
+from: https://github.com/huggingface/trl/issues/1036
+
+@younesbelkada commented on Dec 4, 2023
+hi @Reza-esfandiarpoor
+Technically yes, but I would advise to first merge the sft_model into a single base model and pass the merged model to AutoModelForCausalLMWithValueHead.
+"""
 
 model = AutoModelForCausalLMWithValueHead.from_pretrained(model, model_config)
 
