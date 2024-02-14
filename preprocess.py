@@ -4,7 +4,7 @@ import pandas as pd
 from collections import Counter
 import os
 from sklearn.model_selection import train_test_split
-from utils.files import (
+from utils.data_io import (
     DB_ID,
     BASE_DATA_DIR,
     BASE_CKPT_DIR,

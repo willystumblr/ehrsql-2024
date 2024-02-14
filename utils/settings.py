@@ -1,14 +1,16 @@
 import wandb
 from huggingface_hub import login
 import os, glob, json, argparse
-from ast import literal_eval
+# from ast import literal_eval
 from functools import partial
 from tqdm.auto import tqdm
-from pathlib import Path
+# from pathlib import Path
 import torch
 import evaluate
 from transformers import GenerationConfig
 from transformers.integrations import WandbCallback
+import numpy as np
+import random
 
 # Fill your own tokens
 API = ""
@@ -19,6 +21,19 @@ def wandb_setup(key = API):
     
 def huggingface_login(key=HF_TOKEN):
     login(token=HF_TOKEN)
+
+def set_seed(args):
+    """
+    Ensure reproducibility by setting the seed for random number generation.
+    """
+    np.random.seed(args.seed)
+    random.seed(args.seed)
+    if torch.cuda.is_available():
+        torch.manual_seed(args.seed)
+        torch.cuda.manual_seed(args.seed)
+        torch.cuda.manual_seed_all(args.seed)  # if use multi-GPU
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
 
 class LLMSampleCB(WandbCallback):
