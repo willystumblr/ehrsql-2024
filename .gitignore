@@ -2,3 +2,4 @@ utils/__pycache__/
 preprocess/__pycache__/
 .vscode/
 utils/settings.py
+wandb/
