@@ -22,6 +22,7 @@ from utils.data_io import (
     BASE_DATA_DIR,
     BASE_CKPT_DIR,
 )
+from accelerate import Accelerator
 """
 python ppo.py \
     --train_type=PPO \
@@ -31,7 +32,8 @@ python ppo.py \
     --model_name=meta-llama/Llama-2-7b-hf \
     --learning_rate=1e-3 \
     --load_checkpoint_path=/path/to/adapter \
-    --bf16=1
+    --bf16=1 \
+    --num_samples=400
 """
 
 
@@ -55,13 +57,13 @@ os.environ["WANDB_LOG_MODEL"] = "checkpoint"  # log all model checkpoints
 # Configure CUDA settings
 # This code is originally written for Google Colab
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 train_data, valid_data, test_data = build_dataset()
 
 
-num_ppo_sample = 400
-train_sample = train_data.select(random.sample(range(len(train_data)), num_ppo_sample))
+# num_ppo_sample = 400
+train_sample = train_data.select(random.sample(range(len(train_data)), args.num_samples))
 ppo_dataset = train_sample.map(create_sample_prompt)
 ppo_dataset = ppo_dataset.remove_columns(["id", "question"])
 
@@ -137,7 +139,7 @@ ppo_config = PPOConfig(
 
 # Same config with SFT
 model_config = dict(
-    device_map={"":0},
+    device_map={"": Accelerator().local_process_index},
     trust_remote_code=True,
     torch_dtype=torch.bfloat16 if args.bf16 else "auto",
     use_cache=False,

@@ -26,7 +26,7 @@ from utils.data_io import write_json as write_data
 from utils.data_io import build_dataset
 from unsloth import FastLanguageModel
 from trl import DPOTrainer
-
+from accelerate import PartialState
 
 """
 python dpo.py \
@@ -62,7 +62,7 @@ os.environ["WANDB_LOG_MODEL"] = "checkpoint"  # log all model checkpoints
 # Configure CUDA settings
 # This code is originally written for Google Colab
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
 ### load dataset
@@ -74,7 +74,7 @@ dpo_valid_set = Dataset.from_list(dpo_valid_data).rename_column("query", "prompt
 
 
 model_config = dict(
-    device_map={"":0},
+    device_map={"":PartialState().local_process_index},
     trust_remote_code=True,
     torch_dtype=torch.bfloat16 if args.bf16 else "auto",
     use_cache=False,
@@ -112,7 +112,8 @@ training_args = TrainingArguments(
     save_strategy=args.save_strategy, # if load_best_model_at_end=True
     save_steps=args.save_steps,
     eval_steps=args.eval_steps,
-    load_best_model_at_end=args.load_best_model_at_end
+    load_best_model_at_end=args.load_best_model_at_end,
+    logging_first_step=args.logging_first_step
 )
 
 

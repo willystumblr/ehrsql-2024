@@ -12,6 +12,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from utils.settings import set_seed, wandb_setup, huggingface_login, LLMSampleCB
 from peft import LoraConfig # get_peft_model
 from trl.trainer import SFTTrainer
+# from trl.trainer import get_kbit_device_map, get_quantization_config
 from transformers import TrainingArguments
 from utils.data_io import (
     BASE_DATA_DIR,
@@ -22,6 +23,7 @@ from utils.prompt import create_eval_prompt_batch, create_prompt, create_sample_
 from utils.data_io import read_json as read_data
 from utils.data_io import write_json as write_data
 from utils.data_io import build_dataset
+from accelerate import PartialState
 
 """
 python sft.py \
@@ -66,7 +68,7 @@ os.environ["WANDB_LOG_MODEL"] = "checkpoint"  # log all model checkpoints
 # Configure CUDA settings
 # This code is originally written for Google Colab
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
 tokenizer = AutoTokenizer.from_pretrained(args.model_name)
@@ -85,7 +87,7 @@ peft_parameters = LoraConfig(
 
 
 model_config = dict(
-    device_map={"":0},
+    device_map={"": PartialState().local_process_index},
     trust_remote_code=True,
     torch_dtype=torch.bfloat16 if args.bf16 else "auto",
     use_cache=False,
@@ -106,7 +108,8 @@ training_args = TrainingArguments(
     save_strategy=args.evaluation_strategy, # if load_best_model_at_end=True
     save_steps=args.save_steps,
     eval_steps=args.eval_steps,
-    load_best_model_at_end=args.load_best_model_at_end
+    load_best_model_at_end=args.load_best_model_at_end,
+    logging_first_step=args.logging_first_step
 )
 
 trainer = SFTTrainer(
