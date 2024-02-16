@@ -6,4 +6,5 @@ python ppo.py \
     --model_name=meta-llama/Llama-2-7b-hf \
     --learning_rate=1e-3 \
     --load_checkpoint_path=/path/to/adapter \
-    --bf16=1
+    --bf16=1 \
+    --num_samples=400
