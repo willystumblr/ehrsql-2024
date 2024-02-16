@@ -8,9 +8,10 @@ from tqdm.auto import tqdm
 import wandb
 import random
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from utils.settings import wandb_setup, huggingface_login
+from utils.args import add_default_args
+from utils.settings import set_seed, wandb_setup, huggingface_login
 from peft import LoraConfig, PeftConfig, PeftModel
-from sft import add_default_args, set_seed, update_args, build_dataset
+
 import torch
 import argparse
 from utils.prompt import create_eval_prompt_batch, create_prompt, create_sample_prompt
@@ -21,6 +22,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from utils.data_io import (
     BASE_DATA_DIR,
     BASE_CKPT_DIR,
+    build_dataset,
 )
 from accelerate import Accelerator
 """
@@ -35,7 +37,14 @@ python ppo.py \
     --bf16=1 \
     --num_samples=400
 """
+import logging
 
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+log_formatter = logging.Formatter("[%(thread)s] %(asctime)s [%(levelname)s] %(name)s: %(message)s")
+console = logging.StreamHandler()
+console.setFormatter(log_formatter)
+logger.addHandler(console)
 
 parser = argparse.ArgumentParser()
 parser = add_default_args(parser)
@@ -62,7 +71,7 @@ os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 train_data, valid_data, test_data = build_dataset()
 
 
-# num_ppo_sample = 400
+logger.info("*** Sampling PPO Datasets... ***")
 train_sample = train_data.select(random.sample(range(len(train_data)), args.num_samples))
 ppo_dataset = train_sample.map(create_sample_prompt)
 ppo_dataset = ppo_dataset.remove_columns(["id", "question"])
@@ -155,7 +164,7 @@ peft_parameters = LoraConfig(
 )
 
 ### NOTE: args.load_checkpoint_path contains both adapter config and tokenizer config!
-
+logger.info("*** Loading checkpoints ***")
 tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path, padding_side='left')
 model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
 model = PeftModel.from_pretrained(model, args.load_checkpoint_path, is_trainable=True)
@@ -194,6 +203,8 @@ sql_file_path = f"{BASE_DATA_DIR}/mimic_iv.sql"
 csv_dir_path = f"{BASE_DATA_DIR}"
 save_path = f"{args.output_dir}/{wandb.run.name}"
 
+
+logger.info("*** START TRAINING ***")
 for epoch in tqdm(range(ppo_trainer.config.ppo_epochs), "epoch: "):
     for batch in tqdm(ppo_trainer.dataloader):
         tokenized_queries = tokenizer(batch['query'], return_tensors="pt", padding=True, truncation=True, max_length=args.max_seq_length)['input_ids'].cuda()
