@@ -39,7 +39,8 @@ def add_default_args(parser: argparse.ArgumentParser):
     parser.add_argument("--evaluation_strategy", type=str, default='no')
     parser.add_argument("--save_strategy", type=str, default='steps')
     parser.add_argument("--eval_steps", type=int, default=50)
-    parser.add_argument("--logging_steps", type=int, default=50)
+    parser.add_argument("--logging_steps", type=int, default=50) #logging_first_step
+    parser.add_argument("--logging_first_step", type=bool, default=True)
     parser.add_argument("--save_steps", type=int, default=100)
     parser.add_argument("--load_best_model_at_end", type=bool, default=True)
 
