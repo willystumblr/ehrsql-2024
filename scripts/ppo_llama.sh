@@ -7,4 +7,5 @@ python ppo.py \
     --learning_rate=1e-3 \
     --load_checkpoint_path=/path/to/adapter \
     --bf16=1 \
-    --num_samples=400
+    --num_samples=400 \
+    --gradient_accumulation_steps=1
