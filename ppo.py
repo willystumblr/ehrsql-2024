@@ -143,6 +143,8 @@ ppo_config = PPOConfig(
     learning_rate=1.41e-5,
     ppo_epochs=args.train_epochs,
     batch_size=args.train_batch_size,
+    mini_batch_size=args.train_batch_size,
+    gradient_accumulation_steps=args.gradient_accumulation_steps
 )
 
 
