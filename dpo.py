@@ -53,6 +53,9 @@ args.output_dir = f'{BASE_CKPT_DIR}/{args.train_type.lower()}'
 # Set random seed for reproducibility
 set_seed(args)
 
+wandb_setup(args)
+huggingface_login()
+
 os.environ["WANDB_PROJECT"] = args.project_name  # name your W&B project
 os.environ["WANDB_LOG_MODEL"] = "checkpoint"  # log all model checkpoints
 
