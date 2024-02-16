@@ -1,0 +1,12 @@
+python dpo.py \
+    --project_name=ehrsql-2024-dpo \
+    --train_type=DPO \
+    --bf16=1 \
+    --load_checkpoint_path=/path/to/ckpt \
+    --train_batch_size=8 \
+    --valid_batch_size=4 \
+    --logging_steps=10 \
+    --evaluation_strategy=epoch \
+    --save_strategy=epoch \
+    --load_best_model_at_end=True \
+    --train_epochs=3
