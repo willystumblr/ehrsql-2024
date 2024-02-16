@@ -90,10 +90,10 @@ model_config = dict(
     torch_dtype=torch.bfloat16 if args.bf16 else "auto",
     use_cache=False,
 )
-
-os.makedirs({args.output_dir}/{wandb.run.name}, exist_ok=True)
+save_dir = f"{args.output_dir}/{wandb.run.name}"
+os.makedirs(save_dir, exist_ok=True)
 training_args = TrainingArguments(
-    output_dir = f'{args.output_dir}/{wandb.run.name}',
+    output_dir = save_dir,
     report_to="wandb", # enables logging to W&B 😎
     per_device_train_batch_size=args.train_batch_size,
     learning_rate=args.learning_rate,
@@ -127,3 +127,5 @@ wandb_callback = LLMSampleCB(trainer, sample_dataset, num_samples=20, max_new_to
 trainer.add_callback(wandb_callback)
 trainer.train()
 torch.cuda.empty_cache()
+trainer.save_model(output_dir=save_dir)
+
