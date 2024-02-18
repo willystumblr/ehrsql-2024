@@ -43,92 +43,92 @@ python sft.py \
     --save_strategy=epoch \
     --load_best_model_at_end=True
 """
-    
-parser = argparse.ArgumentParser()
-parser = add_default_args(parser)
-args = parser.parse_args()
-# Determine device for training and set model save path
-args.device = "cuda" if torch.cuda.is_available() else "cpu"
-args.n_gpu = torch.cuda.device_count()
-args.output_dir = f'{BASE_CKPT_DIR}/{args.train_type.lower()}'
+if __name__=='__main__':    
+    parser = argparse.ArgumentParser()
+    parser = add_default_args(parser)
+    args = parser.parse_args()
+    # Determine device for training and set model save path
+    args.device = "cuda" if torch.cuda.is_available() else "cpu"
+    args.n_gpu = torch.cuda.device_count()
+    args.output_dir = f'{BASE_CKPT_DIR}/{args.train_type.lower()}'
 
-# Set random seed for reproducibility
-set_seed(args)
+    # Set random seed for reproducibility
+    set_seed(args)
 
-train_data, valid_data, test_data = build_dataset()
-
-
-### WandB setting
-wandb_setup(args)
-huggingface_login()
-
-os.environ["WANDB_PROJECT"] =  args.project_name # name your W&B project
-os.environ["WANDB_LOG_MODEL"] = "checkpoint"  # log all model checkpoints
-
-# Configure CUDA settings
-# This code is originally written for Google Colab
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    train_data, valid_data, test_data = build_dataset()
 
 
-tokenizer = AutoTokenizer.from_pretrained(args.model_name)
-tokenizer.pad_token = tokenizer.eos_token
-add_tokens = ["<", "<=", "<>"]
-tokenizer.add_tokens(add_tokens)
+    ### WandB setting
+    wandb_setup(args)
+    huggingface_login()
 
-peft_parameters = LoraConfig(
-    lora_alpha=args.lora_alpha,
-    lora_dropout=args.lora_dropout,
-    r=args.lora_r,
-    bias="none",
-    task_type="CAUSAL_LM",
-    target_modules=["q_proj", "k_proj","v_proj","o_proj"]
-)
+    os.environ["WANDB_PROJECT"] =  args.project_name # name your W&B project
+    os.environ["WANDB_LOG_MODEL"] = "checkpoint"  # log all model checkpoints
+
+    # Configure CUDA settings
+    # This code is originally written for Google Colab
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
-model_config = dict(
-    device_map={"": PartialState().local_process_index},
-    trust_remote_code=True,
-    torch_dtype=torch.bfloat16 if args.bf16 else "auto",
-    use_cache=False,
-)
-save_dir = f"{args.output_dir}/{wandb.run.name}"
-os.makedirs(save_dir, exist_ok=True)
-training_args = TrainingArguments(
-    output_dir = save_dir,
-    report_to="wandb", # enables logging to W&B 😎
-    per_device_train_batch_size=args.train_batch_size,
-    learning_rate=args.learning_rate,
-    logging_steps=args.logging_steps,
-    lr_scheduler_type=args.lr_scheduler_type,
-    num_train_epochs=args.train_epochs,
-    gradient_accumulation_steps=args.gradient_accumulation_steps, # simulate larger batch sizes
-    bf16=args.bf16,
-    evaluation_strategy=args.evaluation_strategy,
-    save_strategy=args.evaluation_strategy, # if load_best_model_at_end=True
-    save_steps=args.save_steps,
-    eval_steps=args.eval_steps,
-    load_best_model_at_end=args.load_best_model_at_end,
-    logging_first_step=args.logging_first_step
-)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+    tokenizer.pad_token = tokenizer.eos_token
+    add_tokens = ["<", "<=", "<>"]
+    tokenizer.add_tokens(add_tokens)
 
-trainer = SFTTrainer(
-    model=args.model_name,
-    model_init_kwargs=model_config,
-    tokenizer=tokenizer,
-    train_dataset=train_data,
-    eval_dataset=valid_data,
-    packing=True, # pack samples together for efficient training
-    max_seq_length=args.max_seq_length, # maximum packed length
-    args=training_args,
-    peft_config=peft_parameters,
-    formatting_func=create_prompt, # format samples with a model schema
-)
+    peft_parameters = LoraConfig(
+        lora_alpha=args.lora_alpha,
+        lora_dropout=args.lora_dropout,
+        r=args.lora_r,
+        bias="none",
+        task_type="CAUSAL_LM",
+        target_modules=["q_proj", "k_proj","v_proj","o_proj"]
+    )
 
-sample_dataset = valid_data.map(create_sample_prompt)
-wandb_callback = LLMSampleCB(trainer, sample_dataset, num_samples=20, max_new_tokens=args.max_new_tokens)
-trainer.add_callback(wandb_callback)
-trainer.train()
-torch.cuda.empty_cache()
-trainer.save_model(output_dir=save_dir)
+
+    model_config = dict(
+        device_map={"": PartialState().local_process_index},
+        trust_remote_code=True,
+        torch_dtype=torch.bfloat16 if args.bf16 else "auto",
+        use_cache=False,
+    )
+    save_dir = f"{args.output_dir}/{wandb.run.name}"
+    os.makedirs(save_dir, exist_ok=True)
+    training_args = TrainingArguments(
+        output_dir = save_dir,
+        report_to="wandb", # enables logging to W&B 😎
+        per_device_train_batch_size=args.train_batch_size,
+        learning_rate=args.learning_rate,
+        logging_steps=args.logging_steps,
+        lr_scheduler_type=args.lr_scheduler_type,
+        num_train_epochs=args.train_epochs,
+        gradient_accumulation_steps=args.gradient_accumulation_steps, # simulate larger batch sizes
+        bf16=args.bf16,
+        evaluation_strategy=args.evaluation_strategy,
+        save_strategy=args.evaluation_strategy, # if load_best_model_at_end=True
+        save_steps=args.save_steps,
+        eval_steps=args.eval_steps,
+        load_best_model_at_end=args.load_best_model_at_end,
+        logging_first_step=args.logging_first_step
+    )
+
+    trainer = SFTTrainer(
+        model=args.model_name,
+        model_init_kwargs=model_config,
+        tokenizer=tokenizer,
+        train_dataset=train_data,
+        eval_dataset=valid_data,
+        packing=True, # pack samples together for efficient training
+        max_seq_length=args.max_seq_length, # maximum packed length
+        args=training_args,
+        peft_config=peft_parameters,
+        formatting_func=create_prompt, # format samples with a model schema
+    )
+
+    sample_dataset = valid_data.map(create_sample_prompt)
+    wandb_callback = LLMSampleCB(trainer, sample_dataset, num_samples=20, max_new_tokens=args.max_new_tokens)
+    trainer.add_callback(wandb_callback)
+    trainer.train()
+    torch.cuda.empty_cache()
+    trainer.save_model(output_dir=save_dir)
 
