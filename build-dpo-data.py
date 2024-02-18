@@ -46,8 +46,8 @@ def build_and_save(model, tokenizer, dataset, batch_size, num_return_sequences, 
 
 
 def build_dataset(model, tokenizer, dataset, batch_size, num_return_sequences):
-    dataset = dataset.rename_column("question", "query")
-    dataset = dataset.rename_column("label", "chosen")
+    # dataset = dataset.rename_column("question", "query")
+    # dataset = dataset.rename_column("label", "chosen")
     sample_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
     torch.cuda.empty_cache()
