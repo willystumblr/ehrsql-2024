@@ -27,7 +27,7 @@ from torch.utils.data import DataLoader
 import torch
 from scoring_program.reliability_score import calculate_score, penalize
 from scoring_program.postprocessing import post_process_sql
-
+from utils.settings import huggingface_login
 
 
 
@@ -44,7 +44,7 @@ train_data, valid_data, test_data = build_dataset()
 
 
 # """ TODO: Fix this part... """
-
+huggingface_login()
 
 model_config = dict(
     device_map={"":PartialState().local_process_index},
