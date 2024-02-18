@@ -3,3 +3,5 @@ preprocess/__pycache__/
 .vscode/
 utils/settings.py
 wandb/
+ehrsql_2024_willystumblr.egg-info/
+__pycache__
