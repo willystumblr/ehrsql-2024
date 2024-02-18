@@ -39,7 +39,6 @@ logger.addHandler(console)
 
 parser = argparse.ArgumentParser()
 parser = add_default_args(parser)
-parser.add_argument("--load_tokenizer_path", type=str, help="path to your tokenizer")
 args = parser.parse_args()
 # Determine device for training and set model save path
 args.device = "cuda" if torch.cuda.is_available() else "cpu"
