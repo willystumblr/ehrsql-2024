@@ -43,6 +43,7 @@ def add_default_args(parser: argparse.ArgumentParser):
     parser.add_argument("--logging_first_step", type=bool, default=True)
     parser.add_argument("--save_steps", type=int, default=100)
     parser.add_argument("--load_best_model_at_end", type=bool, default=True)
+    parser.add_argument("--build_type", type=str, default=None, choices=["train", "valid"])
 
     # lora parameters
     parser.add_argument("--lora_alpha", type=int, default=16)
