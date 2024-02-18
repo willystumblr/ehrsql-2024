@@ -10,11 +10,11 @@ import wandb
 import random
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import LoraConfig, PeftConfig, PeftModel
-from sft import add_default_args, set_seed, update_args, build_dataset
+from utils.args import add_default_args, set_seed
 import torch
 import argparse
 from utils.prompt import create_eval_prompt_batch, create_prompt, create_sample_prompt
-from utils.data_io import write_json as write_label
+from utils.data_io import write_json as write_label, build_dataset
 import pandas as pd
 from trl import AutoModelForCausalLMWithValueHead
 from transformers import AutoTokenizer, AutoModelForCausalLM
