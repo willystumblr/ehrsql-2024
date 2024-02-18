@@ -1,4 +1,4 @@
-python data/mimic_iv/build-dpo-data.py \
+python build-dpo-data.py \
     --output_dir=data/mimic_iv \
     --load_checkpoint_path=/path/to/sft-checkpoint \
     --bf16=1 \
@@ -9,7 +9,7 @@ python data/mimic_iv/build-dpo-data.py \
 
 wait
 
-python data/mimic_iv/build-dpo-data.py \
+python build-dpo-data.py \
     --output_dir=data/mimic_iv \
     --load_checkpoint_path=/path/to/sft-checkpoint \
     --bf16=1 \
