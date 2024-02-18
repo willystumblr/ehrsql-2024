@@ -54,7 +54,7 @@ class LLMSampleCB(WandbCallback):
     def samples_table(self, examples):
         records_table = wandb.Table(columns=["prompt", "generation", "target"] + list(self.gen_config.to_dict().keys()))
         for example in tqdm(examples, leave=False):
-            prompt = example["query"]
+            prompt = example["question"]
             generation = self.generate(prompt=prompt)
             target = example["target"]
             records_table.add_data(prompt, generation, target, *list(self.gen_config.to_dict().values()))

@@ -96,14 +96,14 @@ def build_dataset(model, tokenizer, dataset, batch_size, num_return_sequences):
         # print(batch_preds)
         scores = []
         for i, pred in enumerate(batch_preds):
-            ans=batch['chosen'][i]
+            ans=batch['label'][i]
             scores.append([reward_model(sql_file_path, csv_dir_path, ans, p) for p in pred])
 
         for i in range(len(batch['id'])):
             predictions.append({
                 "id": batch['id'][i],
-                "query": batch['query'][i],
-                "chosen": batch['chosen'][i],
+                "query": batch['question'][i],
+                "chosen": batch['label'][i],
                 "pred": batch_preds[i],
                 "score": scores[i],
             })
@@ -193,6 +193,6 @@ if __name__=="__main__":
     model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
     model = PeftModel.from_pretrained(model, args.load_checkpoint_path)
 
-    dataset = dataset.map(create_sample_prompt).remove_columns(["question"]).rename_column("label", "chosen")
+    dataset = dataset.map(create_sample_prompt) # .remove_columns(["question"]).rename_column("label", "chosen")
     
     build_and_save(model, tokenizer, dataset, args.train_batch_size, args.num_return_sequences, os.path.join(args.output_dir, f'__{args.build_type}', 'dpo_data.json'))

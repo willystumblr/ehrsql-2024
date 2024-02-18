@@ -63,4 +63,4 @@ def create_sample_prompt(example):
     """
     label = example['label']
     example['label'] = ''
-    return {"query":create_prompt(example), "label":label}
+    return {"question":create_prompt(example), "label":label}
