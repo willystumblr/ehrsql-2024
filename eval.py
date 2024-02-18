@@ -10,7 +10,7 @@ import wandb
 import random
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import LoraConfig, PeftConfig, PeftModel
-from utils.args import add_default_args, set_seed
+from utils.args import add_default_args
 import torch
 import argparse
 from utils.prompt import create_eval_prompt_batch, create_prompt, create_sample_prompt
@@ -27,7 +27,7 @@ from torch.utils.data import DataLoader
 import torch
 from scoring_program.reliability_score import calculate_score, penalize
 from scoring_program.postprocessing import post_process_sql
-from utils.settings import huggingface_login
+from utils.settings import huggingface_login, set_seed
 import logging
 
 logger = logging.getLogger()
