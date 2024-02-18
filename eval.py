@@ -28,8 +28,14 @@ import torch
 from scoring_program.reliability_score import calculate_score, penalize
 from scoring_program.postprocessing import post_process_sql
 from utils.settings import huggingface_login
+import logging
 
-
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+log_formatter = logging.Formatter("[%(thread)s] %(asctime)s [%(levelname)s] %(name)s: %(message)s")
+console = logging.StreamHandler()
+console.setFormatter(log_formatter)
+logger.addHandler(console)
 
 parser = argparse.ArgumentParser()
 parser = add_default_args(parser)
@@ -222,11 +228,11 @@ accuracy0 = penalize(scores, penalty=0)
 accuracy10 = penalize(scores, penalty=10)
 accuracyN = penalize(scores, penalty=len(scores))
 
-print(f"RS without filtering unanswerable queries: Accuracy0: {accuracy0}, Accuracy10: {accuracy10}, AccuracyN: {accuracyN}")
+logger.info(f"RS without filtering unanswerable queries: Accuracy0: {accuracy0}, Accuracy10: {accuracy10}, AccuracyN: {accuracyN}")
 
 # Calculate threshold for filtering unanswerable queries
 threshold = get_threshold(id2maxent, score_dict)
-print(f"Threshold for filtering: {threshold}")
+logger.info(f"Threshold for filtering: {threshold}")
 
 # Apply threshold to filter out uncertain predictions
 label_y = {sample['id']: 'null' if threshold < max(sample['entropy']) else post_process_sql(sample['pred']) for sample in valid_eval}
@@ -242,7 +248,7 @@ accuracy10_filtered = penalize(scores_filtered, penalty=10)
 accuracyN_filtered = penalize(scores_filtered, penalty=len(scores))
 
 # Output the refined RS scores with abstention
-print(f"RS with filtered unanswerable queries: Accuracy0: {accuracy0_filtered}, Accuracy10: {accuracy10_filtered}, AccuracyN: {accuracyN_filtered}")
+logger.info(f"RS with filtered unanswerable queries: Accuracy0: {accuracy0_filtered}, Accuracy10: {accuracy10_filtered}, AccuracyN: {accuracyN_filtered}")
 
 ##### Submission #####
 test_eval = generate_sql(model, tokenizer, test_data, args)
@@ -258,4 +264,4 @@ SCORING_OUTPUT_DIR = os.path.join(os.path.join(RESULT_DIR, run_name), 'predictio
 write_label(SCORING_OUTPUT_DIR, label_y)
 
 # Verify the file creation
-print(f"Listing files in RESULT_DIR: {os.listdir(RESULT_DIR)}")
+logger.info(f"Listing files in RESULT_DIR: {os.listdir(RESULT_DIR)}")
