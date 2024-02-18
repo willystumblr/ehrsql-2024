@@ -33,6 +33,7 @@ from utils.settings import huggingface_login
 
 parser = argparse.ArgumentParser()
 parser = add_default_args(parser)
+parser.add_argument("--load_tokenizer_path", type=str, help="path to your tokenizer")
 args = parser.parse_args()
 # Determine device for training and set model save path
 args.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -59,10 +60,9 @@ model = PeftModel.from_pretrained(model, args.load_checkpoint_path)
 
 
 if args.train_type=='PPO':
-    model.merge_and_unload()
-    model = AutoModelForCausalLMWithValueHead.from_pretrained(model, model_config)
-
-tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path, padding_side='left') # since we added several tokens to the original tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(args.load_tokenizer_path, padding_side='left')
+else:
+    tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path, padding_side='left') # since we added several tokens to the original tokenizer
 
 
 
