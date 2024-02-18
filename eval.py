@@ -65,7 +65,7 @@ model = PeftModel.from_pretrained(model, args.load_checkpoint_path)
 
 
 if args.train_type=='PPO':
-    tokenizer = AutoTokenizer.from_pretrained(args.load_tokenizer_path, padding_side='left')
+    tokenizer = AutoTokenizer.from_pretrained(args.load_adapter_path, padding_side='left')
 else:
     tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path, padding_side='left') # since we added several tokens to the original tokenizer
 
