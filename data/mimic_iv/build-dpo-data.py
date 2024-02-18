@@ -156,7 +156,7 @@ def post_process(predictions):
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser = add_default_args(parser)
-    parser.add_argument("build_type", type=str, choices=["train", "valid"])
+    parser.add_argument("--build_type", type=str, choices=["train", "valid"])
     args = parser.parse_args()
     # Determine device for training and set model save path
     args.device = "cuda" if torch.cuda.is_available() else "cpu"
