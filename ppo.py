@@ -39,43 +39,6 @@ python ppo.py \
 """
 import logging
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-log_formatter = logging.Formatter("[%(thread)s] %(asctime)s [%(levelname)s] %(name)s: %(message)s")
-console = logging.StreamHandler()
-console.setFormatter(log_formatter)
-logger.addHandler(console)
-
-parser = argparse.ArgumentParser()
-parser = add_default_args(parser)
-args = parser.parse_args()
-# Determine device for training and set model save path
-args.device = "cuda" if torch.cuda.is_available() else "cpu"
-args.n_gpu = torch.cuda.device_count()
-args.output_dir = f'{BASE_CKPT_DIR}/{args.train_type}'
-# Set random seed for reproducibility
-set_seed(args)
-
-# WandB & Huggingface setting
-wandb_setup(args)
-huggingface_login()
-
-os.environ["WANDB_PROJECT"] = args.project_name  # name your W&B project
-os.environ["WANDB_LOG_MODEL"] = "checkpoint"  # log all model checkpoints
-
-# Configure CUDA settings
-# This code is originally written for Google Colab
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
-train_data, valid_data, test_data = build_dataset()
-
-
-logger.info("*** Sampling PPO Datasets... ***")
-train_sample = train_data.select(random.sample(range(len(train_data)), args.num_samples))
-ppo_dataset = train_sample.map(create_sample_prompt)
-ppo_dataset = ppo_dataset.remove_columns(["id", "question"])
-
 def reward_model(sql_file_path, csv_dir_path, target_query, pred_query):
     # Connect to a database (or create one if it doesn't exist)
     conn = sqlite3.connect('example.db')
@@ -136,95 +99,133 @@ def reward_model(sql_file_path, csv_dir_path, target_query, pred_query):
     else:
         return 0.0  # Prediction is wrong but executable
 
-# Assume that we load saved checkpoint after SFT.
-ppo_config = PPOConfig(
-    log_with ='wandb',
-    tracker_project_name=args.project_name,
-    learning_rate=1.41e-5,
-    ppo_epochs=args.train_epochs,
-    batch_size=args.train_batch_size,
-    mini_batch_size=args.train_batch_size,
-    gradient_accumulation_steps=args.gradient_accumulation_steps
-)
+if __name__=="__main__":
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    log_formatter = logging.Formatter("[%(thread)s] %(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    console = logging.StreamHandler()
+    console.setFormatter(log_formatter)
+    logger.addHandler(console)
+
+    parser = argparse.ArgumentParser()
+    parser = add_default_args(parser)
+    args = parser.parse_args()
+    # Determine device for training and set model save path
+    args.device = "cuda" if torch.cuda.is_available() else "cpu"
+    args.n_gpu = torch.cuda.device_count()
+    args.output_dir = f'{BASE_CKPT_DIR}/{args.train_type}'
+    # Set random seed for reproducibility
+    set_seed(args)
+
+    # WandB & Huggingface setting
+    wandb_setup(args)
+    huggingface_login()
+
+    os.environ["WANDB_PROJECT"] = args.project_name  # name your W&B project
+    os.environ["WANDB_LOG_MODEL"] = "checkpoint"  # log all model checkpoints
+
+    # Configure CUDA settings
+    # This code is originally written for Google Colab
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
+    train_data, valid_data, test_data = build_dataset()
 
 
-# Same config with SFT
-model_config = dict(
-    device_map={"": Accelerator().local_process_index},
-    trust_remote_code=True,
-    torch_dtype=torch.bfloat16 if args.bf16 else "auto",
-    use_cache=False,
-)
+    logger.info("*** Sampling PPO Datasets... ***")
+    train_sample = train_data.select(random.sample(range(len(train_data)), args.num_samples))
+    ppo_dataset = train_sample.map(create_sample_prompt)
+    ppo_dataset = ppo_dataset.remove_columns(["id", "question"])
 
-peft_parameters = LoraConfig(
-    lora_alpha=args.lora_alpha,
-    lora_dropout=args.lora_dropout,
-    r=args.lora_r,
-    bias="none",
-    task_type="CAUSAL_LM",
-    target_modules=["q_proj", "k_proj","v_proj","o_proj"]
-)
-
-### NOTE: args.load_checkpoint_path contains both adapter config and tokenizer config!
-logger.info("*** Loading checkpoints ***")
-tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path, padding_side='left')
-model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
-model = PeftModel.from_pretrained(model, args.load_checkpoint_path, is_trainable=True)
-
-model.merge_and_unload()
-"""
-from: https://github.com/huggingface/trl/issues/1036
-
-@younesbelkada commented on Dec 4, 2023
-hi @Reza-esfandiarpoor
-Technically yes, but I would advise to first merge the sft_model into a single base model and pass the merged model to AutoModelForCausalLMWithValueHead.
-"""
-
-model = AutoModelForCausalLMWithValueHead.from_pretrained(model, model_config)
-
-ppo_trainer = PPOTrainer(
-    model=model,
-    ref_model=args.model_name,
-    config=ppo_config,
-    dataset=ppo_dataset,
-    tokenizer=tokenizer
-)
+    # Assume that we load saved checkpoint after SFT.
+    ppo_config = PPOConfig(
+        log_with ='wandb',
+        tracker_project_name=args.project_name,
+        learning_rate=1.41e-5,
+        ppo_epochs=args.train_epochs,
+        batch_size=args.train_batch_size,
+        mini_batch_size=args.train_batch_size,
+        gradient_accumulation_steps=args.gradient_accumulation_steps
+    )
 
 
-generation_kwargs = {
-    "min_length": -1, # don't ignore the EOS token (see above)
-    "top_k": 0.0, # no top-k sampling
-    "top_p": 1.0, # no nucleus sampling
-    "do_sample": True, # yes, we want to sample
-    "pad_token_id": tokenizer.eos_token_id, # most decoder models don't have a padding token - use EOS token instead
-    "max_new_tokens": args.max_new_tokens, # specify how many tokens you want to generate at most
-}
+    # Same config with SFT
+    model_config = dict(
+        device_map={"": Accelerator().local_process_index},
+        trust_remote_code=True,
+        torch_dtype=torch.bfloat16 if args.bf16 else "auto",
+        use_cache=False,
+    )
+
+    peft_parameters = LoraConfig(
+        lora_alpha=args.lora_alpha,
+        lora_dropout=args.lora_dropout,
+        r=args.lora_r,
+        bias="none",
+        task_type="CAUSAL_LM",
+        target_modules=["q_proj", "k_proj","v_proj","o_proj"]
+    )
+
+    ### NOTE: args.load_checkpoint_path contains both adapter config and tokenizer config!
+    logger.info("*** Loading checkpoints ***")
+    tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path, padding_side='left')
+    model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
+    model = PeftModel.from_pretrained(model, args.load_checkpoint_path, is_trainable=True)
+
+    model.merge_and_unload()
+    """
+    from: https://github.com/huggingface/trl/issues/1036
+
+    @younesbelkada commented on Dec 4, 2023
+    hi @Reza-esfandiarpoor
+    Technically yes, but I would advise to first merge the sft_model into a single base model and pass the merged model to AutoModelForCausalLMWithValueHead.
+    """
+
+    model = AutoModelForCausalLMWithValueHead.from_pretrained(model, model_config)
+
+    ppo_trainer = PPOTrainer(
+        model=model,
+        ref_model=args.model_name,
+        config=ppo_config,
+        dataset=ppo_dataset,
+        tokenizer=tokenizer
+    )
 
 
-sql_file_path = f"{BASE_DATA_DIR}/mimic_iv.sql"
-csv_dir_path = f"{BASE_DATA_DIR}"
-save_path = f"{args.output_dir}/{wandb.run.name}"
+    generation_kwargs = {
+        "min_length": -1, # don't ignore the EOS token (see above)
+        "top_k": 0.0, # no top-k sampling
+        "top_p": 1.0, # no nucleus sampling
+        "do_sample": True, # yes, we want to sample
+        "pad_token_id": tokenizer.eos_token_id, # most decoder models don't have a padding token - use EOS token instead
+        "max_new_tokens": args.max_new_tokens, # specify how many tokens you want to generate at most
+    }
 
 
-logger.info("*** START TRAINING ***")
-for epoch in tqdm(range(ppo_trainer.config.ppo_epochs), "epoch: "):
-    for batch in tqdm(ppo_trainer.dataloader):
-        tokenized_queries = tokenizer(batch['query'], return_tensors="pt", padding=True, truncation=True, max_length=args.max_seq_length)['input_ids'].cuda()
-        query_tensors = [tokenized_queries[i] for i in range(len(tokenized_queries))]
-        targets = batch['label']
-
-        #### Get response from SFTModel
-        response_tensors = ppo_trainer.generate(query_tensors, batch_size=ppo_trainer.config.batch_size, return_prompt=False, **generation_kwargs)
-        batch['response'] = tokenizer.batch_decode(response_tensors, skip_special_tokens=True) #
+    sql_file_path = f"{BASE_DATA_DIR}/mimic_iv.sql"
+    csv_dir_path = f"{BASE_DATA_DIR}"
+    save_path = f"{args.output_dir}/{wandb.run.name}"
 
 
-        #### Compute reward score
-        rewards = [torch.tensor(reward_model(sql_file_path, csv_dir_path, t, p)) for t, p in zip(targets, batch['response'])]
+    logger.info("*** START TRAINING ***")
+    for epoch in tqdm(range(ppo_trainer.config.ppo_epochs), "epoch: "):
+        for batch in tqdm(ppo_trainer.dataloader):
+            tokenized_queries = tokenizer(batch['query'], return_tensors="pt", padding=True, truncation=True, max_length=args.max_seq_length)['input_ids'].cuda()
+            query_tensors = [tokenized_queries[i] for i in range(len(tokenized_queries))]
+            targets = batch['label']
 
-        #### Run PPO step
-        stats = ppo_trainer.step(query_tensors, response_tensors, rewards)
-        ppo_trainer.log_stats(stats, batch, rewards)
-        
+            #### Get response from SFTModel
+            response_tensors = ppo_trainer.generate(query_tensors, batch_size=ppo_trainer.config.batch_size, return_prompt=False, **generation_kwargs)
+            batch['response'] = tokenizer.batch_decode(response_tensors, skip_special_tokens=True) #
 
-os.makedirs(save_path, exist_ok=True)
-model.save_pretrained(save_path)
+
+            #### Compute reward score
+            rewards = [torch.tensor(reward_model(sql_file_path, csv_dir_path, t, p)) for t, p in zip(targets, batch['response'])]
+
+            #### Run PPO step
+            stats = ppo_trainer.step(query_tensors, response_tensors, rewards)
+            ppo_trainer.log_stats(stats, batch, rewards)
+            
+
+    os.makedirs(save_path, exist_ok=True)
+    model.save_pretrained(save_path)
