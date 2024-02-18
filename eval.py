@@ -19,14 +19,17 @@ import pandas as pd
 from trl import AutoModelForCausalLMWithValueHead
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from utils.data_io import (
-    BASE_DATA_DIR,
-    BASE_CKPT_DIR,
     RESULT_DIR,
     DB_PATH,
-    NEW_TRAIN_DIR,
-    NEW_VALID_DIR,
-    NEW_TEST_DIR
 )
+from accelerate import PartialState, Accelerator
+from torch.utils.data import DataLoader
+import torch
+from scoring_program.reliability_score import calculate_score, penalize
+from scoring_program.postprocessing import post_process_sql
+
+
+
 
 parser = argparse.ArgumentParser()
 parser = add_default_args(parser)
@@ -37,38 +40,30 @@ args.n_gpu = torch.cuda.device_count()
 # Set random seed for reproducibility
 set_seed(args)
 train_data, valid_data, test_data = build_dataset()
-CKPT_PATH = "" # path/to/checkpoint
+# CKPT_PATH = "" # path/to/checkpoint
 
 
-""" TODO: Fix this part... """
-if args.is_saved_ckpt:
-
-    base_model_name = "meta-llama/Llama-2-7b-hf"
-    adapter_model_name = CKPT_PATH
+# """ TODO: Fix this part... """
 
 
-    model_config = dict(
-        device_map={"":0},
-        trust_remote_code=True,
-        # torch_dtype=torch.bfloat16,
-        use_cache=False,
-    )
+model_config = dict(
+    device_map={"":PartialState().local_process_index},
+    trust_remote_code=True,
+    torch_dtype=torch.bfloat16 if args.bf16 else "auto",
+    use_cache=False,
+)
 
 
-    model = AutoModelForCausalLM.from_pretrained(base_model_name, config=model_config)
-    model = PeftModel.from_pretrained(model, adapter_model_name)
+model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
+model = PeftModel.from_pretrained(model, args.load_checkpoint_path)
+
+
+if args.train_type=='PPO':
     model.merge_and_unload()
+    model = AutoModelForCausalLMWithValueHead.from_pretrained(model, model_config)
 
+tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path, padding_side='left') # since we added several tokens to the original tokenizer
 
-    if args.train_type=='PPO':
-        model = AutoModelForCausalLMWithValueHead.from_pretrained(model, model_config)
-
-    tokenizer = AutoTokenizer.from_pretrained(CKPT_PATH) # since we added several tokens to the original tokenizer
-else:
-    pass
-
-from torch.utils.data import DataLoader
-import torch
 
 
 def generate_sql(model, tokenizer, test_dataset, args, gen_config=None):
@@ -111,10 +106,13 @@ def generate_sql(model, tokenizer, test_dataset, args, gen_config=None):
         prompts = create_eval_prompt_batch(batch)
         # Tokenize prompts for model input
         if args.test_batch_size<=1:
-            inputs = tokenizer(prompts, return_tensors="pt")['input_ids'].cuda()
+            inputs = tokenizer(prompts, return_tensors="pt")['input_ids']
+            
         else:
-            inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True, max_length=args.max_seq_length)['input_ids'].cuda()
-
+            inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True, max_length=args.max_seq_length)['input_ids']
+        
+        if args.device == 'cuda':
+            inputs = inputs.cuda()
 
         # Generate predictions with inference mode for efficiency
         with torch.inference_mode():
@@ -204,8 +202,6 @@ def get_threshold(id2maxent, score_dict):
 
     return threshold  # We abstain if maxent is greater than this threshold.
 
-from scoring_program.reliability_score import calculate_score, penalize
-from scoring_program.postprocessing import post_process_sql
 
 # Perform inference on the validation set
 valid_eval = generate_sql(model, tokenizer, valid_data, args)
@@ -255,8 +251,9 @@ label_y = {sample['id']: 'null' if threshold < max(sample['entropy']) else post_
 from utils.data_io import write_json as write_label
 
 # Save the filtered predictions to a JSON file
-os.makedirs(os.path.join(RESULT_DIR, wandb.run.name), exist_ok=True)
-run_name = CKPT_PATH.split("/")[-1]
+run_name = args.load_checkpoint_path.split("/")[-1]
+os.makedirs(os.path.join(RESULT_DIR, run_name), exist_ok=True)
+
 SCORING_OUTPUT_DIR = os.path.join(os.path.join(RESULT_DIR, run_name), 'prediction.json')
 write_label(SCORING_OUTPUT_DIR, label_y)
 
