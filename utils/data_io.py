@@ -6,7 +6,7 @@ BASE_DIR = '.'
 
 DB_ID = 'mimic_iv'
 BASE_DATA_DIR = f'{BASE_DIR}/data/{DB_ID}'
-BASE_CKPT_DIR = f'{BASE_DIR}/ckpt'
+BASE_CKPT_DIR = f'{BASE_DIR}/ckpt/ehrsql-2024'
 if not os.path.exists(BASE_CKPT_DIR):
     os.makedirs(BASE_CKPT_DIR)
 RESULT_DIR = f'{BASE_DIR}/result_submission/'

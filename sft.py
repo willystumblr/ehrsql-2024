@@ -50,7 +50,7 @@ if __name__=='__main__':
     # Determine device for training and set model save path
     args.device = "cuda" if torch.cuda.is_available() else "cpu"
     args.n_gpu = torch.cuda.device_count()
-    args.output_dir = f'{BASE_CKPT_DIR}/{args.train_type.lower()}'
+    args.output_dir = f'{BASE_CKPT_DIR}/{args.train_type}'
 
     # Set random seed for reproducibility
     set_seed(args)
