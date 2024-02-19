@@ -211,7 +211,7 @@ if __name__=="__main__":
     logger.info("*** START TRAINING ***")
     for epoch in tqdm(range(ppo_trainer.config.ppo_epochs), "epoch: "):
         for batch in tqdm(ppo_trainer.dataloader):
-            tokenized_queries = tokenizer(batch['question'], return_tensors="pt", padding=True, truncation=True, max_length=args.max_seq_length)['input_ids'].cuda()
+            tokenized_queries = tokenizer(batch['query'], return_tensors="pt", padding=True, truncation=True, max_length=args.max_seq_length)['input_ids'].cuda()
             query_tensors = [tokenized_queries[i] for i in range(len(tokenized_queries))]
             targets = batch['label']
 
