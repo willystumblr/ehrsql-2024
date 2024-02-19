@@ -135,6 +135,7 @@ if __name__=="__main__":
     logger.info("*** Sampling PPO Datasets... ***")
     train_sample = train_data.select(random.sample(range(len(train_data)), args.num_samples))
     ppo_dataset = train_sample.map(create_sample_prompt)
+    ppo_dataset = ppo_dataset.rename_column("question", "query")
     ppo_dataset = ppo_dataset.remove_columns(["id"])
 
     # Assume that we load saved checkpoint after SFT.
