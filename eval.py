@@ -60,14 +60,10 @@ model_config = dict(
 )
 
 
-if args.train_type=='PPO':
-    model = AutoModelForCausalLM.from_pretrained(args.load_checkpoint_path, config=model_config)
-    tokenizer = AutoTokenizer.from_pretrained(args.load_adapter_path, padding_side='left')
-else:
-    # 
-    model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
-    model = PeftModel.from_pretrained(model, args.load_checkpoint_path)
-    tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path, padding_side='left') # since we added several tokens to the original tokenizer
+
+model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
+model = PeftModel.from_pretrained(model, args.load_checkpoint_path)
+tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path, padding_side='left') # since we added several tokens to the original tokenizer
 
 
 
