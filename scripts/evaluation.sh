@@ -10,7 +10,7 @@
 python eval.py \
 	--model_name=meta-llama/Llama-2-7b-hf \
 	--bf16=1 \
-	--load_checkpoint_path=ckpt/ehrsql-2024/PPO/incandescent-ox-24 \
+	--load_checkpoint_path=ckpt/PPO/incandescent-ox-24 \
 	--test_batch_size=1 \
 	--train_type=PPO
 
