@@ -41,7 +41,7 @@ python data/mimic_iv/build-dpo-data.py \
 
 def build_and_save(args, model, tokenizer, dataset, batch_size, num_return_sequences, save_path):
     if os.path.exists(save_path):
-        processed = read_data(os.path.join(args.output_dir, f'__{args.build_type}', 'dpo_data.json'))
+        processed = read_data(save_path)
         processed_data = Dataset.from_list(processed)
         dataset = dataset.filter(lambda x: x['id'] not in processed_data['id'])
         random_indices = random.sample(range(len(dataset)), 900)
