@@ -44,6 +44,8 @@ def build_and_save(args, model, tokenizer, dataset, batch_size, num_return_seque
         processed = read_data(os.path.join(args.output_dir, f'__{args.build_type}', 'dpo_data.json'))
         processed_data = Dataset.from_list(processed)
         dataset = dataset.filter(lambda x: x['id'] not in processed_data['id'])
+        random_indices = random.sample(range(len(dataset)), 900)
+        dataset = dataset.select(random_indices)
         mode = 'a'
     else:
         mode = 'r'
