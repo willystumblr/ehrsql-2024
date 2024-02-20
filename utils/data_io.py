@@ -29,9 +29,9 @@ def read_json(path):
         file = json.load(f)
     return file
 
-def write_json(path, file):
+def write_json(path, file, mode):
     os.makedirs(os.path.split(path)[0], exist_ok=True)
-    with open(path, 'w+') as f:
+    with open(path, mode) as f:
         json.dump(file, f)
 
 def build_dataset():

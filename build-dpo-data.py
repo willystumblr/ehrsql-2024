@@ -24,6 +24,7 @@ import os
 from ppo import reward_model
 from torch.utils.data import DataLoader
 import random
+import json
 
 
 """
@@ -38,11 +39,17 @@ python data/mimic_iv/build-dpo-data.py \
 
 """
 
-def build_and_save(model, tokenizer, dataset, batch_size, num_return_sequences, save_path):
+def build_and_save(args, model, tokenizer, dataset, batch_size, num_return_sequences, save_path):
+    if os.path.exists(save_path):
+        processed = read_data(os.path.join(args.output_dir, f'__{args.build_type}', 'dpo_data.json'))
+        processed_data = Dataset.from_list(processed)
+        dataset = dataset.filter(lambda x: x['id'] not in processed_data['id'])
+        mode = 'a'
+    else:
+        mode = 'r'
     predictions = build_dataset(model, tokenizer, dataset, batch_size, num_return_sequences)
     new_dataset = post_process(predictions)
-    
-    write_data(save_path, new_dataset)
+    write_data(save_path, new_dataset, mode)
 
 
 def build_dataset(model, tokenizer, dataset, batch_size, num_return_sequences):
@@ -195,4 +202,4 @@ if __name__=="__main__":
 
     dataset = dataset.map(create_sample_prompt) # .remove_columns(["question"]).rename_column("label", "chosen")
     
-    build_and_save(model, tokenizer, dataset, args.train_batch_size, args.num_return_sequences, os.path.join(args.output_dir, f'__{args.build_type}', 'dpo_data.json'))
+    build_and_save(args, model, tokenizer, dataset, args.train_batch_size, args.num_return_sequences, os.path.join(args.output_dir, f'__{args.build_type}', 'dpo_data.json'))
