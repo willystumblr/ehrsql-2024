@@ -53,22 +53,25 @@ train_data, valid_data, test_data = build_dataset()
 huggingface_login()
 
 model_config = dict(
-    device_map={"":PartialState().local_process_index},
+    device_map={"":Accelerator().local_process_index},
     trust_remote_code=True,
     torch_dtype=torch.bfloat16 if args.bf16 else "auto",
     use_cache=False,
 )
 
 
-if not args.train_type=='PPO':
-    model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
-    model = PeftModel.from_pretrained(model, args.load_checkpoint_path)
+#if not argmodel_name
+#try
+model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
+model = PeftModel.from_pretrained(model, args.load_checkpoint_path)
+#else:
+#except:
+#    model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
+#    model = PeftModel.from_pretrained(model, args.load_checkpoint_path)
+if args.load_adapter_path:
+    tokenizer = AutoTokenizer.from_pretrained(args.load_adapter_path, padding_side='left') # since we added several tokens to the original tokenizer
 else:
-    try:
-        model = AutoModelForCausalLM.from_pretrained(args.load_checkpoint_path, config=model_config)
-    except:
-        model = AutoModelForCausalLM.from_pretrained(args.load_checkpoint_path, config=model_config, use_safetensors=False)
-tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path, padding_side='left') # since we added several tokens to the original tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path, padding_side='left')
 
 
 
