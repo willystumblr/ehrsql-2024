@@ -40,18 +40,21 @@ python data/mimic_iv/build-dpo-data.py \
 """
 
 def build_and_save(args, model, tokenizer, dataset, batch_size, num_return_sequences, save_path):
+    processed = []
     if os.path.exists(save_path):
         processed = read_data(save_path)
         processed_data = Dataset.from_list(processed)
         dataset = dataset.filter(lambda x: x['id'] not in processed_data['id'])
-        random_indices = random.sample(range(len(dataset)), 900)
-        dataset = dataset.select(random_indices)
-        mode = 'a'
-    else:
-        mode = 'r'
+    if args.num_samples > len(dataset):
+        args.num_samples = len(dataset)
+    random_indices = random.sample(range(len(dataset)), args.num_samples)
+    dataset = dataset.select(random_indices)
+    
+    mode = 'w+'
     predictions = build_dataset(model, tokenizer, dataset, batch_size, num_return_sequences)
     new_dataset = post_process(predictions)
-    write_data(save_path, new_dataset, mode)
+    processed.extend(new_dataset)
+    write_data(save_path, processed, mode)
 
 
 def build_dataset(model, tokenizer, dataset, batch_size, num_return_sequences):
