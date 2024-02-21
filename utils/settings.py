@@ -12,8 +12,8 @@ import numpy as np
 import random
 
 # Fill your own tokens
-API = ""
-HF_TOKEN = ''
+API = "e845b522dd2be52f09a0b6b36051a1007fb1bda7"
+HF_TOKEN = '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'
 
 def wandb_setup(args: argparse.Namespace, key = API):
     wandb.login(key=API)
