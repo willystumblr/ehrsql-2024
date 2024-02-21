@@ -1,5 +1,8 @@
 # Reliable Text-to-SQL on Electronic Health Records - Clinical NLP Workshop @ NAACL 2024
 
+- ID: `willystumblr`
+- checkpoint archive: [Dropbox](https://www.dropbox.com/scl/fi/j3hjk8opzhq0hym24rbzu/ckpt.zip?rlkey=jxu7d0orupiegyu1vhip4solt&dl=0)
+
 
 ## [Overview](https://sites.google.com/view/ehrsql-2024)
 
