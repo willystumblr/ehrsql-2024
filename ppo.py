@@ -183,10 +183,17 @@ if __name__=="__main__":
     """
 
     model = AutoModelForCausalLMWithValueHead.from_pretrained(model, model_config)
+    
+    ### initialize reference model
+    ref_model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
+    ref_model = PeftModel.from_pretrained(ref_model, args.load_checkpoint_path, is_trainable=False) # fresse Peft
+    ref_model.merge_and_unload()
+
+    ref_model = AutoModelForCausalLMWithValueHead.from_pretrained(ref_model, model_config)
 
     ppo_trainer = PPOTrainer(
         model=model,
-        ref_model=args.model_name,
+        ref_model=ref_model,
         config=ppo_config,
         dataset=ppo_dataset,
         tokenizer=tokenizer
