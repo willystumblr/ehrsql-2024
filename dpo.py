@@ -82,21 +82,8 @@ if __name__=="__main__":
         load_in_4bit=True
     )
 
-    parser = argparse.ArgumentParser()
-    parser = add_default_args(parser)
-    args = parser.parse_args()
-    # Determine device for training and set model save path
-    args.device = "cuda" if torch.cuda.is_available() else "cpu"
-    args.n_gpu = torch.cuda.device_count()
-    args.output_dir = f'{BASE_CKPT_DIR}/{args.train_type.lower()}'
-
-    # Set random seed for reproducibility
-    set_seed(args)
-
-
     ckpt_path = args.load_checkpoint_path # SFT checkpoint; contains both adapter config and tokenizer config
     model, tokenizer = FastLanguageModel.from_pretrained(ckpt_path, config=model_config)
-
 
     training_args = TrainingArguments(
         output_dir = os.path.join(args.output_dir, wandb.run.name), # should be sth like ehrsql-2024/DPO/{wandb.run.name}
