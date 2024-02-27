@@ -134,6 +134,10 @@ if __name__=="__main__":
 
     logger.info("*** Sampling PPO Datasets... ***")
     train_sample = train_data.select(random.sample(range(len(train_data)), args.num_samples))
+    null_count = len(list(filter(lambda x: x['label']=='null', train_sample)))
+    while (null_count > args.num_sample*0.2) or (null_count < args.num_sample*0.05):
+        train_sample = train_data.select(random.sample(range(len(train_data)), args.num_sample))
+    
     ppo_dataset = train_sample.map(create_sample_prompt)
     ppo_dataset = ppo_dataset.rename_column("question", "query")
     ppo_dataset = ppo_dataset.remove_columns(["id"])
@@ -185,11 +189,14 @@ if __name__=="__main__":
     model = AutoModelForCausalLMWithValueHead.from_pretrained(model, model_config)
     
     ### initialize reference model
-    ref_model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
-    ref_model = PeftModel.from_pretrained(ref_model, args.load_checkpoint_path, is_trainable=False) # fresse Peft
-    ref_model.merge_and_unload()
-
-    ref_model = AutoModelForCausalLMWithValueHead.from_pretrained(ref_model, model_config)
+    if args.load_ref_checkpoint_path:
+        ref_model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
+        ref_model = PeftModel.from_pretrained(ref_model, args.load_ref_checkpoint_path, is_trainable=False) # fresse Peft
+        ref_model.merge_and_unload()
+        
+        ref_model = AutoModelForCausalLMWithValueHead.from_pretrained(ref_model, model_config)
+    else:
+        ref_model = None # Default value
 
     ppo_trainer = PPOTrainer(
         model=model,

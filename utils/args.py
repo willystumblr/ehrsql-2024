@@ -21,6 +21,7 @@ def add_default_args(parser: argparse.ArgumentParser):
     parser.add_argument("--save_checkpoint_path", type=str, default=None)
     parser.add_argument("--load_checkpoint_path", type=str, default=None)
     parser.add_argument("--load_adapter_path", type=str, default=None)
+    parser.add_argument("--load_ref_checkpoint_path", type=str, default=None)
 
     # training parameters
     parser.add_argument("--train_batch_size", type=int, default=8)
