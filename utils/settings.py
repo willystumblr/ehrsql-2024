@@ -56,7 +56,7 @@ class LLMSampleCB(WandbCallback):
         for example in tqdm(examples, leave=False):
             prompt = example["question"]
             generation = self.generate(prompt=prompt)
-            target = example["target"]
+            target = example["label"]
             records_table.add_data(prompt, generation, target, *list(self.gen_config.to_dict().values()))
         return records_table
 
