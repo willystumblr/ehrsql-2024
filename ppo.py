@@ -127,7 +127,7 @@ if __name__=="__main__":
     # Configure CUDA settings
     # This code is originally written for Google Colab
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-    os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(str(i) for i in range(torch.cuda.device_count()))
+    os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(str(i) for i in args.n_gpu)
 
     train_data, valid_data, test_data = build_dataset()
 
