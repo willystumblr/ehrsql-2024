@@ -172,7 +172,12 @@ if __name__=="__main__":
     # Determine device for training and set model save path
     args.device = "cuda" if torch.cuda.is_available() else "cpu"
     args.n_gpu = torch.cuda.device_count()
-
+    
+    # Configure CUDA settings
+    # This code is originally written for Google Colab
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(str(i) for i in range(args.n_gpu))
+    
     # Set random seed for reproducibility
     set_seed(args)
 
@@ -195,7 +200,7 @@ if __name__=="__main__":
 
 
     model_config = dict(
-        device_map={"":0},
+        device_map="auto",
         trust_remote_code=True,
         torch_dtype=torch.bfloat16 if args.bf16 else "auto",
         use_cache=False,
