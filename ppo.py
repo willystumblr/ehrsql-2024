@@ -42,7 +42,7 @@ import logging
 
 def reward_model(sql_file_path, csv_dir_path, target_query, pred_query):
     # Connect to a database (or create one if it doesn't exist)
-    conn = sqlite3.connect(f'{time.strftime('%Y-%m-%d-%H-%M-%S')}.db')
+    conn = sqlite3.connect(f'{time.strftime("%Y-%m-%d-%H-%M-%S")}.db')
     cursor = conn.cursor()
 
     # Read and execute the SQL schema from the .sql file
