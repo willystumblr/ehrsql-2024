@@ -150,7 +150,8 @@ if __name__=="__main__":
         ppo_epochs=args.train_epochs,
         batch_size=args.train_batch_size,
         mini_batch_size=args.train_batch_size,
-        gradient_accumulation_steps=args.gradient_accumulation_steps
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
+        # accelerator_kwargs={"num_processes":args.n_gpu}
     )
 
 
@@ -221,7 +222,7 @@ if __name__=="__main__":
     csv_dir_path = f"{BASE_DATA_DIR}"
     save_path = f"{args.output_dir}/{wandb.run.name}"
 
-
+    logger.info(f"*** NUM_DEVICES: {ppo_trainer.accelerator.num_processes} ***")
     logger.info("*** START TRAINING ***")
     for epoch in tqdm(range(ppo_trainer.config.ppo_epochs), "epoch: "):
         for batch in tqdm(ppo_trainer.dataloader):
