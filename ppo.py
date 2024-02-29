@@ -45,7 +45,9 @@ def reward_model(sql_file_path, csv_dir_path, target_query, pred_query):
     db_exists = False
     if os.path.exists('mimic_iv_demo.db'):
         db_exists = True
-    conn = sqlite3.connect(f'mimic_iv_demo.db')
+    
+    # print(f"DB exists: {db_exists}")
+    conn = sqlite3.connect('mimic_iv_demo.db')
     conn.execute("PRAGMA journal_mode = wal")
     cursor = conn.cursor()
 
@@ -61,7 +63,9 @@ def reward_model(sql_file_path, csv_dir_path, target_query, pred_query):
         raise  # Error encountered
 
     # Import CSV files into the database
+    # print("importing csv files into the database...")
     if not db_exists:
+        print("importing csv files into the database...")
         for csv_file in os.listdir(csv_dir_path):
             if csv_file.endswith('.csv'):
                 try:
