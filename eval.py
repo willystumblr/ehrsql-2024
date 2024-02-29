@@ -25,7 +25,7 @@ from utils.data_io import (
 from accelerate import PartialState, Accelerator
 from torch.utils.data import DataLoader
 import torch
-from scoring_program.reliability_score import calculate_score, penalize
+from scoring_program.scoring_utils import execute_all, reliability_score, penalize
 from scoring_program.postprocessing import post_process_sql
 from utils.settings import huggingface_login, set_seed
 import logging
@@ -225,14 +225,16 @@ real_dict = {id_: post_process_sql(label[id_]) for id_ in label}
 pred_dict = {id_: post_process_sql(label_y[id_]) for id_ in label_y}
 assert set(real_dict) == set(pred_dict), "IDs do not match"
 
-scores, score_dict = calculate_score(real_dict, pred_dict, db_path=DB_PATH, return_dict=True)
+real_result = execute_all(real_dict, db_path=DB_PATH, tag='real')
+pred_result = execute_all(pred_dict, db_path=DB_PATH, tag='pred')
 
+scores, score_dict = reliability_score(real_result, pred_result, return_dict=True)
 accuracy0 = penalize(scores, penalty=0)
+accuracy5 = penalize(scores, penalty=5)
 accuracy10 = penalize(scores, penalty=10)
 accuracyN = penalize(scores, penalty=len(scores))
 
-logger.info(f"RS without filtering unanswerable queries: Accuracy0: {accuracy0}, Accuracy10: {accuracy10}, AccuracyN: {accuracyN}")
-
+print(f"RS without filtering unanswerable queries: Accuracy0: {accuracy0}, Accuracy5: {accuracy5}, Accuracy10: {accuracy10}, AccuracyN: {accuracyN}")
 # Calculate threshold for filtering unanswerable queries
 threshold = get_threshold(id2maxent, score_dict)
 logger.info(f"Threshold for filtering: {threshold}")
@@ -244,15 +246,15 @@ label_y = {sample['id']: 'null' if threshold < max(sample['entropy']) else post_
 real_dict = {id_: post_process_sql(label[id_]) for id_ in label}
 pred_dict = {id_: post_process_sql(label_y[id_]) for id_ in label_y}
 
-scores_filtered = calculate_score(real_dict, pred_dict, db_path=DB_PATH)
+scores_filtered = reliability_score(real_dict, pred_dict)
 
 accuracy0_filtered = penalize(scores_filtered, penalty=0)
+accuracy5_filtered = penalize(scores_filtered, penalty=5)
 accuracy10_filtered = penalize(scores_filtered, penalty=10)
 accuracyN_filtered = penalize(scores_filtered, penalty=len(scores))
 
 # Output the refined RS scores with abstention
-logger.info(f"RS with filtered unanswerable queries: Accuracy0: {accuracy0_filtered}, Accuracy10: {accuracy10_filtered}, AccuracyN: {accuracyN_filtered}")
-
+print(f"RS with filtered unanswerable queries: Accuracy0: {accuracy0_filtered}, Accuracy5: {accuracy5_filtered}, Accuracy10: {accuracy10_filtered}, AccuracyN: {accuracyN_filtered}")
 ##### Submission #####
 test_eval = generate_sql(model, tokenizer, test_data, args)
 
