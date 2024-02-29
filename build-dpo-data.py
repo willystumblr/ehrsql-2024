@@ -26,6 +26,7 @@ from torch.utils.data import DataLoader
 import random
 import json
 import logging
+from accelerate import Accelerator
 
 
 """
@@ -63,7 +64,12 @@ def build_and_save(logger, args, model, tokenizer, dataset, batch_size, num_retu
 def build_dataset(model, tokenizer, dataset, batch_size, num_return_sequences):
     # dataset = dataset.rename_column("question", "query")
     # dataset = dataset.rename_column("label", "chosen")
+    # Initialize Accelerator
+    accelerator = Accelerator()
+    
     sample_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+    model, sample_dataloader = accelerator.prepare(model, sample_dataloader)
+    
 
     torch.cuda.empty_cache()
     gc.collect()
@@ -90,8 +96,9 @@ def build_dataset(model, tokenizer, dataset, batch_size, num_return_sequences):
 
         example_prompts = create_eval_prompt_batch(batch)
         inputs = tokenizer(example_prompts, return_tensors="pt", padding=True, truncation=True, max_length=256)['input_ids'] 
-        if args.device=="cuda":
-            inputs = inputs.cuda()
+        # if args.device=="cuda":
+        #     inputs = inputs.cuda()
+        inputs = accelerator.prepare(inputs)
         
         with torch.inference_mode():
             generated_outputs = model.generate(
@@ -182,6 +189,7 @@ if __name__=="__main__":
     console = logging.StreamHandler()
     console.setFormatter(log_formatter)
     logger.addHandler(console)
+
     
     # Configure CUDA settings
     # This code is originally written for Google Colab
