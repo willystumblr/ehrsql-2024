@@ -189,8 +189,8 @@ if __name__=="__main__":
     model = AutoModelForCausalLMWithValueHead.from_pretrained(model, model_config)
     
     ### initialize reference model
-    if args.load_ref_checkpoint_path:
-        ref_model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
+    if not model.is_peft_model:
+        ref_model = AutoModelForCausalLM.from_pretrained(args.model_name, trust_remote_code=True, )
         ref_model = PeftModel.from_pretrained(ref_model, args.load_ref_checkpoint_path, is_trainable=False) # fresse Peft
         ref_model.merge_and_unload()
         
@@ -230,16 +230,19 @@ if __name__=="__main__":
             targets = batch['label']
 
             #### Get response from SFTModel
-            response_tensors = ppo_trainer.generate(query_tensors, batch_size=ppo_trainer.config.batch_size, return_prompt=False, **generation_kwargs)
-            batch['response'] = tokenizer.batch_decode(response_tensors, skip_special_tokens=True) #
+            response_tensors, ref_response_tensors = ppo_trainer.generate(query_tensors, batch_size=ppo_trainer.config.batch_size, generate_ref_response=True, return_prompt=False, **generation_kwargs)
+            batch['response'] = tokenizer.batch_decode(response_tensors, skip_special_tokens=True)
+            batch["ref_response"] = tokenizer.batch_decode(ref_response_tensors, skip_special_tokens=True) #
 
 
             #### Compute reward score
             rewards = [torch.tensor(reward_model(sql_file_path, csv_dir_path, t, p)) for t, p in zip(targets, batch['response'])]
+            ref_rewards = [torch.tensor(reward_model(sql_file_path, csv_dir_path, t, p)) for t, p in zip(targets, batch['ref_response'])]
+            batch["ref_rewards"] = ref_rewards
 
             #### Run PPO step
             stats = ppo_trainer.step(query_tensors, response_tensors, rewards)
-            ppo_trainer.log_stats(stats, batch, rewards)
+            ppo_trainer.log_stats(stats, batch, rewards, columns_to_log=["query", "response", "ref_response", "ref_rewards"])
             
 
     os.makedirs(save_path, exist_ok=True)
