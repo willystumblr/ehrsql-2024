@@ -127,7 +127,7 @@ if __name__=="__main__":
     # Configure CUDA settings
     # This code is originally written for Google Colab
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-    # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(str(i) for i in range(torch.cuda.device_count()))
 
     train_data, valid_data, test_data = build_dataset()
 
@@ -156,7 +156,7 @@ if __name__=="__main__":
 
     # Same config with SFT
     model_config = dict(
-        device_map={"": Accelerator().local_process_index},
+        device_map="auto",
         trust_remote_code=True,
         torch_dtype=torch.bfloat16 if args.bf16 else "auto",
         use_cache=False,

@@ -23,7 +23,7 @@ from utils.prompt import create_eval_prompt_batch, create_prompt, create_sample_
 from utils.data_io import read_json as read_data
 from utils.data_io import write_json as write_data
 from utils.data_io import build_dataset
-from accelerate import PartialState
+from accelerate import Accelerator
 
 """
 python sft.py \
@@ -68,7 +68,7 @@ if __name__=='__main__':
     # Configure CUDA settings
     # This code is originally written for Google Colab
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-    # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(str(i) for i in range(torch.cuda.device_count()))
 
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
@@ -87,7 +87,7 @@ if __name__=='__main__':
 
 
     model_config = dict(
-        device_map={"": PartialState().local_process_index},
+        device_map="auto", # {"":Accelerator().local_process_index},
         trust_remote_code=True,
         torch_dtype=torch.bfloat16 if args.bf16 else "auto",
         use_cache=False,
