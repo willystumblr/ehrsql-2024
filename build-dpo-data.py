@@ -25,6 +25,7 @@ from ppo import reward_model
 from torch.utils.data import DataLoader
 import random
 import json
+import logging
 
 
 """
@@ -39,7 +40,7 @@ python data/mimic_iv/build-dpo-data.py \
 
 """
 
-def build_and_save(args, model, tokenizer, dataset, batch_size, num_return_sequences, save_path):
+def build_and_save(logger, args, model, tokenizer, dataset, batch_size, num_return_sequences, save_path):
     processed = []
     if os.path.exists(save_path):
         processed = read_data(save_path)
@@ -51,7 +52,9 @@ def build_and_save(args, model, tokenizer, dataset, batch_size, num_return_seque
     dataset = dataset.select(random_indices)
     
     mode = 'w+'
+    logger.info("*** Building dataset... ***")
     predictions = build_dataset(model, tokenizer, dataset, batch_size, num_return_sequences)
+    logger.info("*** Post-processing dataset... ***")
     new_dataset = post_process(predictions)
     processed.extend(new_dataset)
     write_data(save_path, processed, mode)
@@ -173,6 +176,13 @@ if __name__=="__main__":
     args.device = "cuda" if torch.cuda.is_available() else "cpu"
     args.n_gpu = torch.cuda.device_count()
     
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    log_formatter = logging.Formatter("[%(thread)s] %(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    console = logging.StreamHandler()
+    console.setFormatter(log_formatter)
+    logger.addHandler(console)
+    
     # Configure CUDA settings
     # This code is originally written for Google Colab
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -212,4 +222,4 @@ if __name__=="__main__":
 
     dataset = dataset.map(create_sample_prompt) # .remove_columns(["question"]).rename_column("label", "chosen")
     
-    build_and_save(args, model, tokenizer, dataset, args.train_batch_size, args.num_return_sequences, os.path.join(args.output_dir, f'__{args.build_type}', 'dpo_data.json'))
+    build_and_save(logger, args, model, tokenizer, dataset, args.train_batch_size, args.num_return_sequences, os.path.join(args.output_dir, f'__{args.build_type}', 'dpo_data.json'))
