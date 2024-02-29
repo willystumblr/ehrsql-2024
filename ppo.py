@@ -68,7 +68,7 @@ def reward_model(sql_file_path, csv_dir_path, target_query, pred_query):
                 raise  # Error encountered
 
     if target_query=='null':
-        return 1.0 if pred_query=='null' else -10.0
+        return 1.0 if pred_query=='null' else -1.0
 
     # Execute the target query to get the expected output
     try:
@@ -88,7 +88,7 @@ def reward_model(sql_file_path, csv_dir_path, target_query, pred_query):
     except Exception as e:
         print(f"Failed to execute prediction query: {e}")
         conn.close()
-        return -5.0  # Prediction query unexecutable
+        return -1.0  # Prediction query unexecutable
 
     # Close the connection
     conn.close()
