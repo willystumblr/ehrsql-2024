@@ -96,9 +96,9 @@ def build_dataset(model, tokenizer, dataset, batch_size, num_return_sequences):
 
         example_prompts = create_eval_prompt_batch(batch)
         inputs = tokenizer(example_prompts, return_tensors="pt", padding=True, truncation=True, max_length=256)['input_ids'] 
-        # if args.device=="cuda":
-        #     inputs = inputs.cuda()
-        inputs = accelerator.prepare(inputs)
+        if args.device=="cuda":
+            inputs = inputs.cuda()
+        # inputs = accelerator.prepare(inputs)
         
         with torch.inference_mode():
             generated_outputs = model.generate(
