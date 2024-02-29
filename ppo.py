@@ -42,7 +42,11 @@ import logging
 
 def reward_model(sql_file_path, csv_dir_path, target_query, pred_query):
     # Connect to a database (or create one if it doesn't exist)
-    conn = sqlite3.connect(f'{time.strftime("%Y-%m-%d-%H-%M-%S")}.db')
+    db_exists = False
+    if os.path.exists('mimic_iv_demo.db'):
+        db_exists = True
+    conn = sqlite3.connect(f'mimic_iv_demo.db')
+    conn.execute("PRAGMA journal_mode = wal")
     cursor = conn.cursor()
 
     # Read and execute the SQL schema from the .sql file
@@ -57,15 +61,16 @@ def reward_model(sql_file_path, csv_dir_path, target_query, pred_query):
         raise  # Error encountered
 
     # Import CSV files into the database
-    for csv_file in os.listdir(csv_dir_path):
-        if csv_file.endswith('.csv'):
-            try:
-                table_name = os.path.splitext(csv_file)[0]
-                df = pd.read_csv(os.path.join(csv_dir_path, csv_file))
-                df.to_sql(table_name, conn, if_exists='replace', index=False)
-            except Exception as e:
-                print(f"Failed to import {csv_file}: {e}")
-                conn.close()
+    if not db_exists:
+        for csv_file in os.listdir(csv_dir_path):
+            if csv_file.endswith('.csv'):
+                try:
+                    table_name = os.path.splitext(csv_file)[0]
+                    df = pd.read_csv(os.path.join(csv_dir_path, csv_file))
+                    df.to_sql(table_name, conn, if_exists='replace', index=False)
+                except Exception as e:
+                    print(f"Failed to import {csv_file}: {e}")
+                    conn.close()
                 raise  # Error encountered
 
     if target_query=='null':
