@@ -124,7 +124,7 @@ def build_dataset(model, tokenizer, dataset, batch_size, num_return_sequences):
         for i in range(len(batch['id'])):
             predictions.append({
                 "id": batch['id'][i],
-                "query": batch['question'][i],
+                "prompt": batch['question'][i],
                 "chosen": batch['label'][i],
                 "pred": batch_preds[i],
                 "score": scores[i],

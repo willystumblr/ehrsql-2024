@@ -70,8 +70,8 @@ if __name__=="__main__":
     dpo_train_data = read_data(f"{NEW_TRAIN_DIR}/dpo_data.json")
     dpo_valid_data = read_data(f"{NEW_VALID_DIR}/dpo_data.json")
 
-    dpo_train_set = Dataset.from_list(dpo_train_data).rename_column("query", "prompt")
-    dpo_valid_set = Dataset.from_list(dpo_valid_data).rename_column("query", "prompt")
+    dpo_train_set = Dataset.from_list(dpo_train_data)
+    dpo_valid_set = Dataset.from_list(dpo_valid_data)
 
 
     model_config = dict(
