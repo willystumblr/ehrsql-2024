@@ -21,7 +21,7 @@ import argparse
 import sqlite3
 import pandas as pd
 import os
-from ppo import reward_model
+from ppo import reward_model, reward_model_v2
 from torch.utils.data import DataLoader
 import random
 import json
@@ -41,7 +41,7 @@ python data/mimic_iv/build-dpo-data.py \
 
 """
 
-def build_and_save(logger, args, model, tokenizer, dataset, batch_size, num_return_sequences, save_path):
+def build_and_save(accelerator: Accelerator, logger, args, model, tokenizer, dataset, batch_size, num_return_sequences, save_path):
     processed = []
     if os.path.exists(save_path):
         processed = read_data(save_path)
@@ -52,24 +52,26 @@ def build_and_save(logger, args, model, tokenizer, dataset, batch_size, num_retu
     random_indices = random.sample(range(len(dataset)), args.num_samples)
     dataset = dataset.select(random_indices)
     
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+    model, dataloader = accelerator.prepare(model, dataloader)
+    
     mode = 'w+'
     logger.info("*** Building dataset... ***")
-    predictions = build_dataset(model, tokenizer, dataset, batch_size, num_return_sequences)
+    predictions = build_dataset(model, tokenizer, accelerator, dataloader, batch_size, num_return_sequences)
+    
+    
     logger.info("*** Post-processing dataset... ***")
     new_dataset = post_process(predictions)
     processed.extend(new_dataset)
+    
+    processed = accelerator.gather_for_metrics(processed)
+    
     write_data(save_path, processed, mode)
 
 
-def build_dataset(model, tokenizer, dataset, batch_size, num_return_sequences):
+def build_dataset(model, tokenizer, accelerator, dataloader, batch_size, num_return_sequences):
     # dataset = dataset.rename_column("question", "query")
     # dataset = dataset.rename_column("label", "chosen")
-    # Initialize Accelerator
-    accelerator = Accelerator()
-    
-    sample_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
-    model, sample_dataloader = accelerator.prepare(model, sample_dataloader)
-    
 
     torch.cuda.empty_cache()
     gc.collect()
@@ -92,8 +94,7 @@ def build_dataset(model, tokenizer, dataset, batch_size, num_return_sequences):
 
     model.to(args.device)
     model.eval()
-    for batch in tqdm(sample_dataloader):
-
+    for batch in tqdm(dataloader):
         example_prompts = create_eval_prompt_batch(batch)
         inputs = tokenizer(example_prompts, return_tensors="pt", padding=True, truncation=True, max_length=256)['input_ids'] 
         if args.device=="cuda":
@@ -119,7 +120,7 @@ def build_dataset(model, tokenizer, dataset, batch_size, num_return_sequences):
         scores = []
         for i, pred in enumerate(batch_preds):
             ans=batch['label'][i]
-            scores.append([reward_model(sql_file_path, csv_dir_path, ans, p) for p in pred])
+            scores.append([reward_model_v2(sql_file_path, ans, p) for p in pred])
 
         for i in range(len(batch['id'])):
             predictions.append({
@@ -129,7 +130,7 @@ def build_dataset(model, tokenizer, dataset, batch_size, num_return_sequences):
                 "pred": batch_preds[i],
                 "score": scores[i],
             })
-
+    # predictions = accelerator.gather_for_metrics(predictions)
     return predictions
 
 def post_process(predictions):
@@ -190,6 +191,7 @@ if __name__=="__main__":
     console.setFormatter(log_formatter)
     logger.addHandler(console)
 
+    accelerator = Accelerator()
     
     # Configure CUDA settings
     # This code is originally written for Google Colab
@@ -230,4 +232,4 @@ if __name__=="__main__":
 
     dataset = dataset.map(create_sample_prompt) # .remove_columns(["question"]).rename_column("label", "chosen")
     
-    build_and_save(logger, args, model, tokenizer, dataset, args.train_batch_size, args.num_return_sequences, os.path.join(args.output_dir, f'__{args.build_type}', 'dpo_data.json'))
+    build_and_save(accelerator, logger, args, model, tokenizer, dataset, args.train_batch_size, args.num_return_sequences, os.path.join(args.output_dir, f'__{args.build_type}', 'dpo_data.json'))
