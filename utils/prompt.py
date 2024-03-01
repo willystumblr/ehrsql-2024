@@ -64,3 +64,21 @@ def create_sample_prompt(example):
     label = example['label']
     example['label'] = ''
     return {"question":create_prompt(example), "label":label}
+
+
+def create_ppo_prompt(example):
+    """_summary_
+    creates prompt for wandb logging.
+
+    Args:
+    - item: element of datasets.Dataset
+        {
+            "id": q_id,
+            "question: query,
+            "label": answer,
+            "answer": sql query answer
+        }
+    """
+    label = example['label']
+    example['label'] = ''
+    return {"query":create_prompt(example), "label":label, "answer":example['answer']}

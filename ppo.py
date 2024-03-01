@@ -14,7 +14,7 @@ from peft import LoraConfig, PeftConfig, PeftModel
 
 import torch
 import argparse
-from utils.prompt import create_eval_prompt_batch, create_prompt, create_sample_prompt
+from utils.prompt import create_eval_prompt_batch, create_ppo_prompt, create_prompt, create_sample_prompt
 import sqlite3
 import pandas as pd
 from trl import PPOConfig, PPOTrainer, AutoModelForCausalLMWithValueHead
@@ -26,6 +26,8 @@ from utils.data_io import (
 )
 import time
 from accelerate import Accelerator
+import logging
+import sqlparse
 """
 python ppo.py \
     --train_type=PPO \
@@ -38,16 +40,14 @@ python ppo.py \
     --bf16=1 \
     --num_samples=400
 """
-import logging
+
 
 def reward_model(sql_file_path, csv_dir_path, target_query, pred_query):
     # Connect to a database (or create one if it doesn't exist)
     db_exists = False
     if os.path.exists('mimic_iv_demo.db'):
         db_exists = True
-    
-    # print(f"DB exists: {db_exists}")
-    conn = sqlite3.connect('mimic_iv_demo.db')
+    conn = sqlite3.connect(f'mimic_iv_demo.db')
     conn.execute("PRAGMA journal_mode = wal")
     cursor = conn.cursor()
 
@@ -63,9 +63,7 @@ def reward_model(sql_file_path, csv_dir_path, target_query, pred_query):
         raise  # Error encountered
 
     # Import CSV files into the database
-    # print("importing csv files into the database...")
     if not db_exists:
-        print("importing csv files into the database...")
         for csv_file in os.listdir(csv_dir_path):
             if csv_file.endswith('.csv'):
                 try:
@@ -75,7 +73,7 @@ def reward_model(sql_file_path, csv_dir_path, target_query, pred_query):
                 except Exception as e:
                     print(f"Failed to import {csv_file}: {e}")
                     conn.close()
-                raise  # Error encountered
+                    raise  # Error encountered
 
     if target_query=='null':
         return 1.0 if pred_query=='null' else -1.0
@@ -108,6 +106,40 @@ def reward_model(sql_file_path, csv_dir_path, target_query, pred_query):
         return 1.0  # Prediction is correct
     else:
         return 0.0  # Prediction is wrong but executable
+
+def reward_model_v2(sql_file_path, target_query, pred_query):
+    """_summary_ 
+    Rule-based reward model. Reward is determined by the followings:
+    - executable
+    - correctness
+    """ 
+    ### null handling
+    if target_query=='null':
+        return 1.0 if pred_query=='null' else -1.0
+    
+    ### check executability
+    parsed = None
+    try:
+        parsed = sqlparse.parse(pred_query)        
+    except Exception as e:
+        return -1.0
+    
+    if parsed:
+        target_output = execute_query(sql_file_path, target_query)
+        pred_output = execute_query(sql_file_path, pred_query)
+        if target_output==pred_output:
+            return 1.0
+        else:
+            0.5
+        
+
+def execute_query(sql_file_path, query):
+    conn = sqlite3.connect(sql_file_path)
+    cursor = conn.cursor()
+    output = cursor.execute(query)
+    rows = output.fetchall()
+    conn.close()
+    return rows
 
 if __name__=="__main__":
     logger = logging.getLogger()
@@ -148,8 +180,8 @@ if __name__=="__main__":
     while (null_count > args.num_samples*0.2) or (null_count < args.num_samples*0.05):
         train_sample = train_data.select(random.sample(range(len(train_data)), args.num_samples))
     
-    ppo_dataset = train_sample.map(create_sample_prompt)
-    ppo_dataset = ppo_dataset.rename_column("question", "query")
+    ppo_dataset = train_sample.map(create_ppo_prompt)
+    # ppo_dataset = ppo_dataset.rename_column("question", "query")
     ppo_dataset = ppo_dataset.remove_columns(["id"])
 
     # Assume that we load saved checkpoint after SFT.
@@ -228,17 +260,17 @@ if __name__=="__main__":
     }
 
 
-    sql_file_path = f"{BASE_DATA_DIR}/mimic_iv.sql"
+    sql_file_path = f"{BASE_DATA_DIR}/mimic_iv.sqlite"
     csv_dir_path = f"{BASE_DATA_DIR}"
     save_path = f"{args.output_dir}/{wandb.run.name}"
 
     logger.info(f"*** NUM_DEVICES: {ppo_trainer.accelerator.num_processes} ***")
     logger.info("*** START TRAINING ***")
-    for epoch in tqdm(range(ppo_trainer.config.ppo_epochs), "epoch: "):
+    for epoch in tqdm(range(ppo_trainer.config.ppo_epochs), "process: "):
         for batch in tqdm(ppo_trainer.dataloader):
             tokenized_queries = tokenizer(batch['query'], return_tensors="pt", padding=True, truncation=True, max_length=args.max_seq_length)['input_ids'].cuda()
             query_tensors = [tokenized_queries[i] for i in range(len(tokenized_queries))]
-            targets = batch['label']
+            targets, answers = batch['label'], batch['answer']
 
             #### Get response from SFTModel
             response_tensors, ref_response_tensors = ppo_trainer.generate(query_tensors, batch_size=ppo_trainer.config.batch_size, generate_ref_response=True, return_prompt=False, **generation_kwargs)
@@ -247,8 +279,11 @@ if __name__=="__main__":
 
 
             #### Compute reward score
-            rewards = [torch.tensor(reward_model(sql_file_path, csv_dir_path, t, p)) for t, p in zip(targets, batch['response'])]
-            ref_rewards = [torch.tensor(reward_model(sql_file_path, csv_dir_path, t, p)) for t, p in zip(targets, batch['ref_response'])]
+            # rewards = [torch.tensor(reward_model(sql_file_path, csv_dir_path, t, p)) for t, p in zip(targets, batch['response'])]
+            # ref_rewards = [torch.tensor(reward_model(sql_file_path, csv_dir_path, t, p)) for t,  p in zip(targets, batch['ref_response'])]
+            rewards = [torch.tensor(reward_model_v2(sql_file_path, t, p)) for t, p in zip(targets, batch['response'])]
+            ref_rewards = [torch.tensor(reward_model_v2(sql_file_path, t, p)) for t, p in zip(targets, batch['ref_response'])]
+            
             batch["ref_rewards"] = ref_rewards
 
             #### Run PPO step
