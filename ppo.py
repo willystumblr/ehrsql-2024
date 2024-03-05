@@ -139,13 +139,16 @@ def syntax_checker(query):
     cursor = temp_db.cursor()
     try:
         _ = cursor.execute(query)
-    except sqlite3.OperationalError as e:
+    except Exception as e:
         error_message = str(e).lower()
         if 'unrecognized token:' in error_message or 'syntax error' in error_message:
             pass
         elif 'no such' in error_message:
             valid = True
-            return valid
+            
+        else:
+            valid = False
+        return valid    
     finally:
         temp_db.close()
         
