@@ -116,21 +116,32 @@ def reward_model_v2(sql_file_path, target_query, pred_query):
     ### null handling
     if target_query=='null':
         return 1.0 if pred_query=='null' else -1.0
+
+    valid = syntax_checker(pred_query)
     
-    ### check executability
-    parsed = None
-    try:
-        parsed = sqlparse.parse(pred_query)        
-    except Exception as e:
-        return -1.0
-    
-    if parsed:
+    if valid:
         target_output = execute_query(sql_file_path, target_query)
         pred_output = execute_query(sql_file_path, pred_query)
         if target_output==pred_output:
             return 1.0
         else:
             0.5
+
+def syntax_checker(query):
+    valid = False
+    temp_db = sqlite3.connect(":memory:")   
+    cursor = temp_db.cursor()
+    try:
+        _ = cursor.execute(query)
+    except sqlite3.OperationalError as e:
+        error_message = str(e).lower()
+        if 'unrecognized token:' in error_message or 'syntax error' in error_message:
+            pass
+        elif 'no such' in error_message:
+            valid = True
+            return valid
+    finally:
+        temp_db.close()
         
 
 def execute_query(sql_file_path, query):
