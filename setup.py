@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='ehrsql-2024-willystumblr',
+    name='ehrsql-2024',
     version='0.1',
     packages=find_packages(include=['preprocess', 'scoring_program', 'utils', 'ingestion_program']),
     install_requires=[
@@ -14,6 +14,6 @@ setup(
         'xformers==0.0.24',
         'accelerate==0.27.2',
         'bitsandbytes==0.42.0',
-        'unsloth[conda] @ git+https://github.com/unslothai/unsloth.git@February-Gemma-2024'
+        # 'unsloth[conda] @ git+https://github.com/unslothai/unsloth.git@February-Gemma-2024'
     ]
 )
