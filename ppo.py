@@ -125,7 +125,9 @@ def reward_model_v2(sql_file_path, target_query, pred_query):
         if target_output==pred_output:
             return 1.0
         else:
-            0.5
+            return 0.5
+    else:
+        return -1.0
 
 def syntax_checker(query):
     valid = False
@@ -283,12 +285,14 @@ if __name__=="__main__":
             query_tensors = [tokenized_queries[i] for i in range(len(tokenized_queries))]
             targets = batch['label']
 
+            # print(targets)
             #### Get response from SFTModel
             response_tensors, ref_response_tensors = ppo_trainer.generate(query_tensors, batch_size=ppo_trainer.config.batch_size, generate_ref_response=True, return_prompt=False, **generation_kwargs)
             batch['response'] = tokenizer.batch_decode(response_tensors, skip_special_tokens=True)
             batch["ref_response"] = tokenizer.batch_decode(ref_response_tensors, skip_special_tokens=True) #
-
-
+            # print(batch['response'])
+            # print(batch['ref_response'])
+            
             #### Compute reward score
             # rewards = [torch.tensor(reward_model(sql_file_path, csv_dir_path, t, p)) for t, p in zip(targets, batch['response'])]
             # ref_rewards = [torch.tensor(reward_model(sql_file_path, csv_dir_path, t, p)) for t,  p in zip(targets, batch['ref_response'])]
