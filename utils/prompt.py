@@ -81,4 +81,4 @@ def create_ppo_prompt(example):
     """
     label = example['label']
     example['label'] = ''
-    return {"query":create_prompt(example), "label":label, "answer":example['answer']}
+    return {"query":create_prompt(example), "label":label}
