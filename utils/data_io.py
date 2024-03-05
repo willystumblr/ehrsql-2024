@@ -40,12 +40,12 @@ def build_dataset():
     # prepare data
     new_train_data = read_json(os.path.join(NEW_TRAIN_DIR, 'data.json'))
     new_train_label = read_json(os.path.join(NEW_TRAIN_DIR, "label.json"))
-    new_train_answer = read_json(os.path.join(NEW_TRAIN_DIR, "answer.json"))
+    # new_train_answer = read_json(os.path.join(NEW_TRAIN_DIR, "answer.json"))
     new_valid_data = read_json(os.path.join(NEW_VALID_DIR, 'data.json'))
     new_valid_label = read_json(os.path.join(NEW_VALID_DIR, "label.json"))
     new_test_data = read_json(os.path.join(NEW_TEST_DIR, "data.json"))
 
-    train_dataset = [{"id": d['id'], "question":d['question'], "label":l[1], "answer":a[1]} for d, l, a in zip(new_train_data['data'], new_train_label.items(), new_train_answer.items())]
+    train_dataset = [{"id": d['id'], "question":d['question'], "label":l[1]} for d, l in zip(new_train_data['data'], new_train_label.items())]
     valid_dataset = [{"id": d['id'], "question":d['question'], "label":l[1]} for d, l in zip(new_valid_data['data'], new_valid_label.items())]
     test_dataset = [{"id": d['id'], "question":d['question']} for d in new_test_data['data']]
 

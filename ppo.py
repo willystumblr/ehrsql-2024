@@ -270,7 +270,7 @@ if __name__=="__main__":
         for batch in tqdm(ppo_trainer.dataloader):
             tokenized_queries = tokenizer(batch['query'], return_tensors="pt", padding=True, truncation=True, max_length=args.max_seq_length)['input_ids'].cuda()
             query_tensors = [tokenized_queries[i] for i in range(len(tokenized_queries))]
-            targets, answers = batch['label'], batch['answer']
+            targets = batch['label']
 
             #### Get response from SFTModel
             response_tensors, ref_response_tensors = ppo_trainer.generate(query_tensors, batch_size=ppo_trainer.config.batch_size, generate_ref_response=True, return_prompt=False, **generation_kwargs)
