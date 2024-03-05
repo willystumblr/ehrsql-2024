@@ -89,7 +89,7 @@ def build_dataset(model, tokenizer, accelerator, dataloader, batch_size, num_ret
     )
 
 
-    sql_file_path = f"{BASE_DATA_DIR}/mimic_iv.sql"
+    sql_file_path = f"{BASE_DATA_DIR}/mimic_iv.sqlite"
     csv_dir_path = f"{BASE_DATA_DIR}"
 
     model.to(args.device)
@@ -160,7 +160,7 @@ def post_process(predictions):
 
         new_dpo_data.append({
             "id": item['id'],
-            "query": item['query'],
+            "query": item['question'],
             "chosen": item['chosen'],
             "rejected": rejected,
         })
