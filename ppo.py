@@ -315,3 +315,4 @@ if __name__=="__main__":
 
     os.makedirs(save_path, exist_ok=True)
     ppo_trainer.save_pretrained(save_path)
+    ppo_trainer.push_to_hub(args.project_name)
