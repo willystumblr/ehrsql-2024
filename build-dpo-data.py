@@ -3,7 +3,10 @@ from tqdm.auto import tqdm
 from utils.data_io import read_json as read_data, write_json as write_data
 from utils.data_io import (
     DB_ID,
+    TRAIN_DATA_PATH,
+    TRAIN_LABEL_PATH,
     NEW_TRAIN_DIR,
+    VALID_DATA_PATH,
     NEW_VALID_DIR,
     NEW_TEST_DIR,
     BASE_CKPT_DIR,
@@ -57,19 +60,21 @@ def build_and_save(accelerator: Accelerator, logger, args, model, tokenizer, dat
     
     mode = 'w+'
     logger.info("*** Building dataset... ***")
-    predictions = build_dataset(model, tokenizer, accelerator, dataloader, batch_size, num_return_sequences)
+    predictions = build_dataset(model, tokenizer, accelerator, dataloader, logger, batch_size, num_return_sequences)
     
     
     logger.info("*** Post-processing dataset... ***")
     new_dataset = post_process(predictions)
+    new_dataset = accelerator.gather_for_metrics(new_dataset)
     processed.extend(new_dataset)
     
-    processed = accelerator.gather_for_metrics(processed)
+    # processed = accelerator.gather_for_metrics(processed)
     
     write_data(save_path, processed, mode)
+    # accelerator.save(processed, save_path)
 
 
-def build_dataset(model, tokenizer, accelerator, dataloader, batch_size, num_return_sequences):
+def build_dataset(model, tokenizer, accelerator, dataloader, logger, batch_size, num_return_sequences):
     # dataset = dataset.rename_column("question", "query")
     # dataset = dataset.rename_column("label", "chosen")
 
@@ -94,6 +99,8 @@ def build_dataset(model, tokenizer, accelerator, dataloader, batch_size, num_ret
 
     model.to(args.device)
     model.eval()
+    logger.info("*** Start generating chose/rejected... ***")
+    logger.info(f"*** Number of items to be processed: {len(dataloader)} ***")
     for batch in tqdm(dataloader):
         example_prompts = create_eval_prompt_batch(batch)
         inputs = tokenizer(example_prompts, return_tensors="pt", padding=True, truncation=True, max_length=256)['input_ids'] 
@@ -160,7 +167,7 @@ def post_process(predictions):
 
         new_dpo_data.append({
             "id": item['id'],
-            "query": item['question'],
+            "query": item['prompt'],
             "chosen": item['chosen'],
             "rejected": rejected,
         })
@@ -206,11 +213,15 @@ if __name__=="__main__":
     
     if args.build_type == 'train':
     # Save the new datasets to JSON files for later use
-        new_data = read_data(os.path.join(NEW_TRAIN_DIR, "data.json"))
-        new_label = read_data(os.path.join(NEW_TRAIN_DIR, "label.json"))
+        # new_data = read_data(os.path.join(TRAIN_DIR, "data.json"))
+        new_data = read_data(TRAIN_DATA_PATH)
+        # new_label = read_data(os.path.join(TRAIN_DIR, "label.json"))
+        new_label = read_data(TRAIN_LABEL_PATH)
     else:
-        new_data = read_data(os.path.join(NEW_VALID_DIR, "data.json"))
-        new_label = read_data(os.path.join(NEW_VALID_DIR, "label.json"))
+        # new_data = read_data(os.path.join(VALID_DIR, "data.json"))
+        new_data = read_data(VALID_DATA_PATH)
+        # new_label = read_data(os.path.join(VALID_DIR, "label.json"))
+        new_label = read_data(VALID_LABEL_PATH)
 
     dataset = Dataset.from_list(
                         [{"id": d['id'], "question":d['question'], "label":l[1]} for d, l in zip(new_data['data'], new_label.items())]
