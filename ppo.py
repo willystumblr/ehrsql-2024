@@ -120,14 +120,18 @@ def reward_model_v2(sql_file_path, target_query, pred_query):
     valid = syntax_checker(pred_query)
     
     if valid:
+        pred_output = None
         target_output = execute_query(sql_file_path, target_query)
-        pred_output = execute_query(sql_file_path, pred_query)
-        if target_output==pred_output:
-            return 1.0
-        else:
-            return 0.5
+        try:
+            pred_output = execute_query(sql_file_path, pred_query)
+            if target_output==pred_output:
+                return 1.0
+            else: ### fail to execute queries
+                return 0.5 
+        except sqlite3.OperationalError as e: 
+            return 0.0 ### syntax correct, but cannot operate
     else:
-        return -1.0
+        return -1.0 ## wrong syntax
 
 def syntax_checker(query):
     valid = False
