@@ -87,7 +87,7 @@ if __name__=='__main__':
 
 
     model_config = dict(
-        device_map="auto", # {"":Accelerator().local_process_index},
+        device_map={"": Accelerator().local_process_index},
         trust_remote_code=True,
         torch_dtype=torch.bfloat16 if args.bf16 else "auto",
         use_cache=False,

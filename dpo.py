@@ -26,7 +26,7 @@ from utils.data_io import write_json as write_data
 from utils.data_io import build_dataset
 from unsloth import FastLanguageModel
 from trl import DPOTrainer
-from accelerate import PartialState
+from accelerate import PartialState, Accelerator
 
 """
 python dpo.py \
@@ -75,7 +75,7 @@ if __name__=="__main__":
 
 
     model_config = dict(
-        device_map="auto",
+        device_map={"": Accelerator().local_process_index},
         trust_remote_code=True,
         torch_dtype=torch.bfloat16 if args.bf16 else "auto",
         use_cache=False,

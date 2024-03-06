@@ -219,7 +219,7 @@ if __name__=="__main__":
 
     # Same config with SFT
     model_config = dict(
-        device_map="auto",
+        device_map={"": Accelerator().local_process_index},
         trust_remote_code=True,
         torch_dtype=torch.bfloat16 if args.bf16 else "auto",
         use_cache=False,
