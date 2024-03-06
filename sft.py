@@ -111,7 +111,7 @@ if __name__=='__main__':
         load_best_model_at_end=args.load_best_model_at_end,
         logging_first_step=args.logging_first_step,
         push_to_hub=True,
-        push_to_hub_model_id=f"willystumblr/{args.project_name}-{args.model_name.split('/')[-1]}",
+        push_to_hub_model_id=f"{args.project_name}-{args.model_name.split('/')[-1]}",
         push_to_hub_token=HF_W_TOKEN
     )
 
