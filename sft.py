@@ -9,7 +9,7 @@ import random
 import argparse
 import wandb
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from utils.settings import set_seed, wandb_setup, huggingface_login, LLMSampleCB
+from utils.settings import set_seed, wandb_setup, huggingface_login, LLMSampleCB, HF_W_TOKEN
 from peft import LoraConfig # get_peft_model
 from trl.trainer import SFTTrainer
 # from trl.trainer import get_kbit_device_map, get_quantization_config
@@ -109,7 +109,10 @@ if __name__=='__main__':
         save_steps=args.save_steps,
         eval_steps=args.eval_steps,
         load_best_model_at_end=args.load_best_model_at_end,
-        logging_first_step=args.logging_first_step
+        logging_first_step=args.logging_first_step,
+        push_to_hub=True,
+        push_to_hub_model_id=f"willystumblr/{args.project_name}-{args.model_name.split('/')[-1]}",
+        push_to_hub_token=HF_W_TOKEN
     )
 
     trainer = SFTTrainer(
@@ -130,6 +133,6 @@ if __name__=='__main__':
     trainer.add_callback(wandb_callback)
     trainer.train()
     torch.cuda.empty_cache()
-    trainer.save_model(output_dir=save_dir)
-    trainer.push_to_hub(f"{args.project_name}-{args.model_name.split('/')[-1]}")
+    trainer.save_model(output_dir=training_args.output_dir)
+    #trainer.push_to_hub()
 

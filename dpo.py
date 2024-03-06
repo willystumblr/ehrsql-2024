@@ -9,7 +9,7 @@ import random
 import argparse
 import wandb
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from utils.settings import set_seed, wandb_setup, huggingface_login, LLMSampleCB
+from utils.settings import set_seed, wandb_setup, huggingface_login, LLMSampleCB, HF_W_TOKEN
 from peft import LoraConfig # get_peft_model
 from trl.trainer import SFTTrainer
 from transformers import TrainingArguments
@@ -101,7 +101,10 @@ if __name__=="__main__":
         save_steps=args.save_steps,
         eval_steps=args.eval_steps,
         load_best_model_at_end=args.load_best_model_at_end,
-        logging_first_step=args.logging_first_step
+        logging_first_step=args.logging_first_step,
+        push_to_hub=True,
+        push_to_hub_model_id=f"willystumblr/{args.project_name}-{args.model_name.split('/')[-1]}",
+        push_to_hub_token=HF_W_TOKEN
     )
 
 
@@ -114,6 +117,6 @@ if __name__=="__main__":
     )
 
     dpo_trainer.train()
-    dpo_trainer.save_model(training_args.output_dir)
-    dpo_trainer.push_to_hub(f"{args.project_name}-{args.model_name.split('/')[-1]}")
+    dpo_trainer.save_model(output_dir=training_args.output_dir)
+    #dpo_trainer.push_to_hub(f"{args.project_name}-{args.model_name.split('/')[-1]}")
 
