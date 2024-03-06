@@ -131,5 +131,5 @@ if __name__=='__main__':
     trainer.train()
     torch.cuda.empty_cache()
     trainer.save_model(output_dir=save_dir)
-    trainer.push_to_hub(args.project_name)
+    trainer.push_to_hub(f"{args.project_name}-{args.model_name.split("/")[-1]}")
 

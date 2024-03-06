@@ -115,5 +115,5 @@ if __name__=="__main__":
 
     dpo_trainer.train()
     dpo_trainer.save_model(training_args.output_dir)
-    dpo_trainer.push_to_hub(args.project_name)
+    dpo_trainer.push_to_hub(f"{args.project_name}-{args.model_name.split("/")[-1]}")
 
