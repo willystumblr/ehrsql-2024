@@ -5,8 +5,18 @@ import sqlite3
 import numpy as np
 import multiprocessing as mp
 
+def process_item(item):
+    try:
+        item = round(float(item),3)
+    except:
+        pass
+    return str(item)
+
 def process_answer(ans):
-    return str(sorted([str(list(ret)) for ret in ans])[:100]) # check only up to 100th record
+    if type(ans)==str:
+        return ans
+    else:
+        return str(sorted([[process_item(c) for c in row] for row in ans])[:100]) # check only up to 100th record
 
 def execute_sql(sql, db_path):
     con = sqlite3.connect(db_path)
@@ -14,7 +24,7 @@ def execute_sql(sql, db_path):
     cur = con.cursor()
     result = cur.execute(sql).fetchall()
     con.close()
-    return process_answer(result)
+    return result
 
 def execute_sql_wrapper(key, sql, db_path, tag, skip_indicator='null'):
     assert tag in ['real', 'pred']
@@ -23,6 +33,7 @@ def execute_sql_wrapper(key, sql, db_path, tag, skip_indicator='null'):
             result = execute_sql(sql, db_path)
         except:
             result = 'error_'+tag
+        result = process_answer(result)
         return (key, result)
     else:
         return (key, skip_indicator)
