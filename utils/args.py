@@ -9,6 +9,7 @@ def add_default_args(parser: argparse.ArgumentParser):
     parser.add_argument("--train_data_dir", type=str, help="train data path")
     parser.add_argument("--train_type", type=str, choices=["SFT", "PPO", "DPO"])
     parser.add_argument("--local-rank", type=int, default=None, help="GPU multi-processing")
+    parser.add_argument("--phase", type=str, default="dev", choices=["dev", "dev_final", "test"], help="competition phase")
 
     parser.add_argument("--valid_data_dir", type=str, help="valid data path")
     parser.add_argument("--test_data_dir", type=str, help="test data path")
