@@ -57,7 +57,6 @@ if __name__=='__main__':
 
     train_data, valid_data, test_data = build_dataset()
 
-
     ### WandB setting
     wandb_setup(args)
     huggingface_login()
@@ -87,12 +86,15 @@ if __name__=='__main__':
 
 
     model_config = dict(
-        device_map={"": Accelerator().local_process_index},
+        device_map={"": Accelerator().process_index},
         trust_remote_code=True,
         torch_dtype=torch.bfloat16 if args.bf16 else "auto",
         use_cache=False,
     )
     save_dir = f"{args.output_dir}/{wandb.run.name}"
+    
+    model = AutoModelForCausalLM.from_pretrained(args.model_name, model_config)
+    
     os.makedirs(save_dir, exist_ok=True)
     training_args = TrainingArguments(
         output_dir = save_dir,
@@ -107,7 +109,6 @@ if __name__=='__main__':
         evaluation_strategy=args.evaluation_strategy,
         save_strategy=args.evaluation_strategy, # if load_best_model_at_end=True
         save_steps=args.save_steps,
-        eval_steps=args.eval_steps,
         load_best_model_at_end=args.load_best_model_at_end,
         logging_first_step=args.logging_first_step,
         push_to_hub=True,
@@ -116,11 +117,10 @@ if __name__=='__main__':
     )
 
     trainer = SFTTrainer(
-        model=args.model_name,
-        model_init_kwargs=model_config,
+        model=model,
         tokenizer=tokenizer,
         train_dataset=train_data,
-        eval_dataset=valid_data,
+        eval_dataset=valid_data if args.phase == 'dev' else None,
         packing=True, # pack samples together for efficient training
         max_seq_length=args.max_seq_length, # maximum packed length
         args=training_args,
@@ -128,11 +128,14 @@ if __name__=='__main__':
         formatting_func=create_prompt, # format samples with a model schema
     )
 
-    sample_dataset = valid_data.map(create_sample_prompt)
-    wandb_callback = LLMSampleCB(trainer, sample_dataset, num_samples=20, max_new_tokens=args.max_new_tokens)
-    trainer.add_callback(wandb_callback)
+    if args.phase != 'dev':
+        sample_dataset = valid_data.map(create_sample_prompt)
+        wandb_callback = LLMSampleCB(trainer, sample_dataset, num_samples=20, max_new_tokens=args.max_new_tokens)
+        trainer.add_callback(wandb_callback)
+    
     trainer.train()
     torch.cuda.empty_cache()
+    
     trainer.save_model(output_dir=training_args.output_dir)
     #trainer.push_to_hub()
 
