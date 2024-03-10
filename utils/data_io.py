@@ -18,6 +18,7 @@ TRAIN_DATA_PATH = os.path.join(BASE_DATA_DIR, 'train', 'data.json')     # JSON f
 TRAIN_LABEL_PATH = os.path.join(BASE_DATA_DIR, 'train', 'label.json')   # JSON file with corresponding SQL queries for training data
 TRAIN_ANSWER_PATH = os.path.join(BASE_DATA_DIR, 'train', 'answer.json') # JSON file with fetched answers for eah SQL query for training data
 VALID_DATA_PATH = os.path.join(BASE_DATA_DIR, 'valid', 'data.json')     # JSON file for validation data
+TEST_DATA_DIR = os.path.join(BASE_DATA_DIR, 'test', 'data.json') 
 DB_PATH = os.path.join(BASE_DATA_DIR, f'{DB_ID}.sqlite')                # Database path
 
 # Will be deprecated during test phase
@@ -36,21 +37,38 @@ def write_json(path, file, mode='w+'):
     with open(path, mode) as f:
         json.dump(file, f)
 
-def build_dataset():
+def build_dataset(phase):
     # prepare data
-    new_train_data = read_json(os.path.join(NEW_TRAIN_DIR, 'data.json'))
-    new_train_label = read_json(os.path.join(NEW_TRAIN_DIR, "label.json"))
+    if phase == 'dev':
+        train_path, valid_path, test_path = NEW_TRAIN_DIR, NEW_VALID_DIR, NEW_TEST_DIR  
+    elif phase == 'dev_final':
+        train_path, valid_path, test_path = TRAIN_DATA_PATH, VALID_DATA_PATH, None
+    else:
+        train_path, valid_path, test_path = TRAIN_DATA_PATH, VALID_DATA_PATH, TEST_DATA_DIR
+    
+    
+    new_train_data = read_json(os.path.join(train_path, 'data.json'))
+    new_train_label = read_json(os.path.join(train_path, "label.json"))
     # new_train_answer = read_json(os.path.join(NEW_TRAIN_DIR, "answer.json"))
-    new_valid_data = read_json(os.path.join(NEW_VALID_DIR, 'data.json'))
-    new_valid_label = read_json(os.path.join(NEW_VALID_DIR, "label.json"))
-    new_test_data = read_json(os.path.join(NEW_TEST_DIR, "data.json"))
-
     train_dataset = [{"id": d['id'], "question":d['question'], "label":l[1]} for d, l in zip(new_train_data['data'], new_train_label.items())]
-    valid_dataset = [{"id": d['id'], "question":d['question'], "label":l[1]} for d, l in zip(new_valid_data['data'], new_valid_label.items())]
-    test_dataset = [{"id": d['id'], "question":d['question']} for d in new_test_data['data']]
+    
+    
 
     train_data = Dataset.from_list(train_dataset)
-    valid_data = Dataset.from_list(valid_dataset)
-    test_data = Dataset.from_list(test_dataset)
+    ### TODO: leave it for now..
+    if phase!='test':
+        new_valid_data = read_json(os.path.join(valid_path, 'data.json'))
+        new_valid_label = read_json(os.path.join(valid_path, "label.json"))
+        valid_dataset = [{"id": d['id'], "question":d['question'], "label":l[1]} for d, l in zip(new_valid_data['data'], new_valid_label.items())]
+        valid_data = Dataset.from_list(valid_dataset)
+
+        
+        new_test_data = read_json(os.path.join(NEW_TEST_DIR, "data.json"))
+        test_dataset = [{"id": d['id'], "question":d['question']} for d in new_test_data['data']]
+        test_data = Dataset.from_list(test_dataset)
+    else:
+        valid_data=None
+        test_data=None 
+    
     
     return train_data, valid_data, test_data
