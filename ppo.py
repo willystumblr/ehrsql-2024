@@ -16,9 +16,7 @@ import torch
 import argparse
 from utils.prompt import create_eval_prompt_batch, create_ppo_prompt, create_prompt, create_sample_prompt
 import sqlite3
-import pandas as pd
 from trl import PPOConfig, PPOTrainer, AutoModelForCausalLMWithValueHead
-from transformers import AutoTokenizer, AutoModelForCausalLM
 from utils.data_io import (
     BASE_DATA_DIR,
     BASE_CKPT_DIR,
@@ -314,5 +312,5 @@ if __name__=="__main__":
             
 
     os.makedirs(save_path, exist_ok=True)
-    ppo_trainer.save_pretrained(save_path)
+    # ppo_trainer.save_pretrained(save_path)
     ppo_trainer.push_to_hub(f"{args.project_name}-{args.model_name.split('/')[-1]}", token=HF_W_TOKEN)
