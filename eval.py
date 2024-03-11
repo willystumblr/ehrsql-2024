@@ -45,7 +45,7 @@ args.device = "cuda" if torch.cuda.is_available() else "cpu"
 args.n_gpu = torch.cuda.device_count()
 # Set random seed for reproducibility
 set_seed(args)
-train_data, valid_data, test_data = build_dataset()
+train_data, valid_data, test_data = build_dataset(args.phase)
 # CKPT_PATH = "" # path/to/checkpoint
 
 

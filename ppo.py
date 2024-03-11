@@ -189,7 +189,7 @@ if __name__=="__main__":
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(str(i) for i in range(args.n_gpu))
 
-    train_data, valid_data, test_data = build_dataset()
+    train_data, valid_data, test_data = build_dataset(args.phase)
 
 
     logger.info("*** Sampling PPO Datasets... ***")

@@ -55,7 +55,7 @@ if __name__=='__main__':
     # Set random seed for reproducibility
     set_seed(args)
 
-    train_data, valid_data, test_data = build_dataset()
+    train_data, valid_data, test_data = build_dataset(args.phase)
 
     ### WandB setting
     wandb_setup(args)
