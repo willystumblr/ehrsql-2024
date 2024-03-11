@@ -63,7 +63,9 @@ model_config = dict(
 #if not argmodel_name
 #try
 if args.train_type=='PPO':
-    model = AutoModelForCausalLMWithValueHead.from_pretrained(args.load_checkpoint_path, config=model_config)
+    # model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
+    # model = PeftModel.from_pretrained(model, args.load_checkpoint_path)
+    model = AutoModelForCausalLMWithValueHead.from_pretrained(args.load_checkpoint_path, config=model_config, use_safetensors=False) # constantly causing error...
     # model = PeftModel.from_pretrained(model, args.load_checkpoint_path)
 else:
     model = AutoModelForCausalLM.from_pretrained(args.load_checkpoint_path, config=model_config)
