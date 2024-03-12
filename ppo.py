@@ -313,5 +313,7 @@ if __name__=="__main__":
 
     os.makedirs(save_path, exist_ok=True)
     # ppo_trainer.save_pretrained(save_path)
+    repo_id = f"{args.project_name}-{args.model_name.split('/')[-1]}"
     model = ppo_trainer.accelerator.unwrap_model(ppo_trainer.model)
-    model.push_to_hub(f"{args.project_name}-{args.model_name.split('/')[-1]}", token=HF_W_TOKEN, safe_serialization=False)
+    model.push_to_hub(repo_id, token=HF_W_TOKEN, safe_serialization=False)
+    tokenizer.push_to_hub(repo_id)
