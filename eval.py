@@ -63,9 +63,10 @@ model_config = dict(
 #if not argmodel_name
 #try
 if args.train_type=='PPO':
-    # model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
-    # model = PeftModel.from_pretrained(model, args.load_checkpoint_path)
-    model = AutoModelForCausalLMWithValueHead.from_pretrained(args.load_checkpoint_path, config=model_config, use_safetensors=False) # constantly causing error...
+    model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
+    # model.get_peft_model(args.load_checkpoint_path, adapter_kwargs={'use_safetensors':False})
+    # model = PeftModel.from_pretrained(model, args.load_checkpoint_path, is_trainable=False)
+    model = AutoModelForCausalLMWithValueHead.from_pretrained(model, args.load_checkpoint_path, use_safetensors=False) # constantly causing error...
     # model = PeftModel.from_pretrained(model, args.load_checkpoint_path)
 else:
     model = AutoModelForCausalLM.from_pretrained(args.load_checkpoint_path, config=model_config)
@@ -74,10 +75,12 @@ else:
 #except:
 #    model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
 #    model = PeftModel.from_pretrained(model, args.load_checkpoint_path)
+print(model)
+
 if args.load_adapter_path:
-    tokenizer = AutoTokenizer.from_pretrained(args.load_adapter_path, padding_side='left') # since we added several tokens to the original tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(args.load_adapter_path) # since we added several tokens to the original tokenizer
 else:
-    tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path, padding_side='left')
+    tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path)
 
 
 
@@ -174,6 +177,7 @@ def generate_sql(model, tokenizer, test_dataset, args, gen_config=None):
             entropy_list.append(entropy_truncated)
 
         pred_list = tokenizer.batch_decode(preds[:, inputs.shape[1]:], skip_special_tokens=True)
+        print(pred_list)
         # print(pred_list)
 
         # Construct the output results for each prediction.
