@@ -193,11 +193,13 @@ if __name__=="__main__":
 
     if args.sample_ratio<1:
         logger.info("*** Sampling PPO Datasets... ***")
-        num_samples=int(len(train_data)*args.sample_ratio)
-        num_nulls = int(num_samples*0.3)
         
         nulls = train_data.filter(lambda x: x['label']=='null')
         non_nulls = train_data.filter(lambda x: x['label']!='null')
+        
+        num_samples=int(len(train_data)*args.sample_ratio)
+        num_nulls = min(int(num_samples*0.3), len(nulls))
+        
         
         nulls_sample = nulls.select(random.sample(range(len(nulls)), num_nulls))
         non_nulls_sample = non_nulls.select(random.sample(range(len(non_nulls)), num_samples-num_nulls))
