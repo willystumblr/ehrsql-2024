@@ -30,58 +30,6 @@ from scoring_program.postprocessing import post_process_sql
 from utils.settings import huggingface_login, set_seed
 import logging
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-log_formatter = logging.Formatter("[%(thread)s] %(asctime)s [%(levelname)s] %(name)s: %(message)s")
-console = logging.StreamHandler()
-console.setFormatter(log_formatter)
-logger.addHandler(console)
-
-parser = argparse.ArgumentParser()
-parser = add_default_args(parser)
-args = parser.parse_args()
-# Determine device for training and set model save path
-args.device = "cuda" if torch.cuda.is_available() else "cpu"
-args.n_gpu = torch.cuda.device_count()
-# Set random seed for reproducibility
-set_seed(args)
-train_data, valid_data, test_data = build_dataset(args.phase)
-# CKPT_PATH = "" # path/to/checkpoint
-
-
-# """ TODO: Fix this part... """
-huggingface_login()
-
-model_config = dict(
-    device_map={"":Accelerator().local_process_index},
-    trust_remote_code=True,
-    torch_dtype=torch.bfloat16 if args.bf16 else "auto",
-    use_cache=False,
-)
-
-
-#if not argmodel_name
-#try
-# if args.train_type=='PPO':
-model = AutoModelForCausalLM.from_pretrained(args.load_adapter_path, config=model_config)
-    # model.get_peft_model(args.load_checkpoint_path, adapter_kwargs={'use_safetensors':False})
-    # model = PeftModel.from_pretrained(model, args.load_checkpoint_path, is_trainable=False)
-    # model = AutoModelForCausalLMWithValueHead.from_pretrained(model, args.load_checkpoint_path, use_safetensors=False) # constantly causing error...
-    # model = PeftModel.from_pretrained(model, args.load_checkpoint_path)
-# else:
-#     model = AutoModelForCausalLM.from_pretrained(args.load_checkpoint_path, config=model_config)
-    # model = PeftModel.from_pretrained(model, args.load_checkpoint_path)
-#else:
-#except:
-#    model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
-#    model = PeftModel.from_pretrained(model, args.load_checkpoint_path)
-# print(model)
-
-if args.load_adapter_path:
-    tokenizer = AutoTokenizer.from_pretrained(args.load_adapter_path) # since we added several tokens to the original tokenizer
-else:
-    tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path)
-
 
 
 def generate_sql(model, tokenizer, test_dataset, args, gen_config=None):
@@ -222,61 +170,94 @@ def get_threshold(id2maxent, score_dict):
     return threshold  # We abstain if maxent is greater than this threshold.
 
 
-# Perform inference on the validation set
-valid_eval = generate_sql(model, tokenizer, valid_data, args)
+if __name__=="__main__":
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    log_formatter = logging.Formatter("[%(thread)s] %(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    console = logging.StreamHandler()
+    console.setFormatter(log_formatter)
+    logger.addHandler(console)
 
-# Post-process SQL queries for evaluation
-label = {sample['id']: post_process_sql(sample['real']) for sample in valid_eval}
-label_y = {sample['id']: post_process_sql(sample['pred']) for sample in valid_eval}
-id2maxent = {sample['id']: max(sample['entropy']) for sample in valid_eval}  # NOTE: Abstain strategy not used here
+    parser = argparse.ArgumentParser()
+    parser = add_default_args(parser)
+    args = parser.parse_args()
+    # Determine device for training and set model save path
+    args.device = "cuda" if torch.cuda.is_available() else "cpu"
+    args.n_gpu = torch.cuda.device_count()
+    # Set random seed for reproducibility
+    set_seed(args)
+    train_data, valid_data, test_data = build_dataset(args.phase)
+    # CKPT_PATH = "" # path/to/checkpoint
 
-# Calculate the Reliability Score (RS) across all queries
-real_dict = {id_: post_process_sql(label[id_]) for id_ in label}
-pred_dict = {id_: post_process_sql(label_y[id_]) for id_ in label_y}
-assert set(real_dict) == set(pred_dict), "IDs do not match"
 
-real_result = execute_all(real_dict, db_path=DB_PATH, tag='real')
-pred_result = execute_all(pred_dict, db_path=DB_PATH, tag='pred')
+    # """ TODO: Fix this part... """
+    huggingface_login()
 
-scores, score_dict = reliability_score(real_result, pred_result, return_dict=True)
-accuracy0 = penalize(scores, penalty=0)
-accuracy5 = penalize(scores, penalty=5)
-accuracy10 = penalize(scores, penalty=10)
-accuracyN = penalize(scores, penalty=len(scores))
+    model_config = dict(
+        device_map={"":Accelerator().local_process_index},
+        trust_remote_code=True,
+        torch_dtype=torch.bfloat16 if args.bf16 else "auto",
+        use_cache=False,
+    )
 
-print(f"RS without filtering unanswerable queries: Accuracy0: {accuracy0}, Accuracy5: {accuracy5}, Accuracy10: {accuracy10}, AccuracyN: {accuracyN}")
-# Calculate threshold for filtering unanswerable queries
-threshold = get_threshold(id2maxent, score_dict)
-logger.info(f"Threshold for filtering: {threshold}")
+    model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
+    tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path)
 
-# Apply threshold to filter out uncertain predictions
-label_y = {sample['id']: 'null' if threshold < max(sample['entropy']) else post_process_sql(sample['pred']) for sample in valid_eval}
+    # Perform inference on the validation set
+    valid_eval = generate_sql(model, tokenizer, valid_data, args)
 
-# Recalculate RS with filtered predictions
-real_dict = {id_: post_process_sql(label[id_]) for id_ in label}
-pred_dict = {id_: post_process_sql(label_y[id_]) for id_ in label_y}
+    # Post-process SQL queries for evaluation
+    label = {sample['id']: post_process_sql(sample['real']) for sample in valid_eval}
+    label_y = {sample['id']: post_process_sql(sample['pred']) for sample in valid_eval}
+    id2maxent = {sample['id']: max(sample['entropy']) for sample in valid_eval}  # NOTE: Abstain strategy not used here
 
-scores_filtered = reliability_score(real_dict, pred_dict)
+    # Calculate the Reliability Score (RS) across all queries
+    real_dict = {id_: post_process_sql(label[id_]) for id_ in label}
+    pred_dict = {id_: post_process_sql(label_y[id_]) for id_ in label_y}
+    assert set(real_dict) == set(pred_dict), "IDs do not match"
 
-accuracy0_filtered = penalize(scores_filtered, penalty=0)
-accuracy5_filtered = penalize(scores_filtered, penalty=5)
-accuracy10_filtered = penalize(scores_filtered, penalty=10)
-accuracyN_filtered = penalize(scores_filtered, penalty=len(scores))
+    real_result = execute_all(real_dict, db_path=DB_PATH, tag='real')
+    pred_result = execute_all(pred_dict, db_path=DB_PATH, tag='pred')
 
-# Output the refined RS scores with abstention
-print(f"RS with filtered unanswerable queries: Accuracy0: {accuracy0_filtered}, Accuracy5: {accuracy5_filtered}, Accuracy10: {accuracy10_filtered}, AccuracyN: {accuracyN_filtered}")
-##### Submission #####
-test_eval = generate_sql(model, tokenizer, test_data, args)
+    scores, score_dict = reliability_score(real_result, pred_result, return_dict=True)
+    accuracy0 = penalize(scores, penalty=0)
+    accuracy5 = penalize(scores, penalty=5)
+    accuracy10 = penalize(scores, penalty=10)
+    accuracyN = penalize(scores, penalty=len(scores))
 
-label_y = {sample['id']: 'null' if threshold < max(sample['entropy']) else post_process_sql(sample['pred']) for sample in test_eval}
-from utils.data_io import write_json as write_label
+    print(f"RS without filtering unanswerable queries: Accuracy0: {accuracy0}, Accuracy5: {accuracy5}, Accuracy10: {accuracy10}, AccuracyN: {accuracyN}")
+    # Calculate threshold for filtering unanswerable queries
+    threshold = get_threshold(id2maxent, score_dict)
+    logger.info(f"Threshold for filtering: {threshold}")
 
-# Save the filtered predictions to a JSON file
-run_name = args.load_checkpoint_path.split("/")[-1]
-os.makedirs(os.path.join(RESULT_DIR, run_name), exist_ok=True)
+    # Apply threshold to filter out uncertain predictions
+    label_y = {sample['id']: 'null' if threshold < max(sample['entropy']) else post_process_sql(sample['pred']) for sample in valid_eval}
 
-SCORING_OUTPUT_DIR = os.path.join(os.path.join(RESULT_DIR, run_name), 'prediction.json')
-write_label(SCORING_OUTPUT_DIR, label_y)
+    # Recalculate RS with filtered predictions
+    real_dict = {id_: post_process_sql(label[id_]) for id_ in label}
+    pred_dict = {id_: post_process_sql(label_y[id_]) for id_ in label_y}
 
-# Verify the file creation
-logger.info(f"Listing files in RESULT_DIR: {os.listdir(RESULT_DIR)}")
+    scores_filtered = reliability_score(real_dict, pred_dict)
+
+    accuracy0_filtered = penalize(scores_filtered, penalty=0)
+    accuracy5_filtered = penalize(scores_filtered, penalty=5)
+    accuracy10_filtered = penalize(scores_filtered, penalty=10)
+    accuracyN_filtered = penalize(scores_filtered, penalty=len(scores))
+
+    # Output the refined RS scores with abstention
+    print(f"RS with filtered unanswerable queries: Accuracy0: {accuracy0_filtered}, Accuracy5: {accuracy5_filtered}, Accuracy10: {accuracy10_filtered}, AccuracyN: {accuracyN_filtered}")
+    ##### Submission #####
+    test_eval = generate_sql(model, tokenizer, test_data, args)
+
+    label_y = {sample['id']: 'null' if threshold < max(sample['entropy']) else post_process_sql(sample['pred']) for sample in test_eval}
+    from utils.data_io import write_json as write_label
+
+    # Save the filtered predictions to a JSON file
+    run_name = args.load_checkpoint_path.split("/")[-1]
+    os.makedirs(os.path.join(RESULT_DIR, run_name), exist_ok=True)
+
+    SCORING_OUTPUT_DIR = os.path.join(os.path.join(RESULT_DIR, run_name), 'prediction.json')
+    write_label(SCORING_OUTPUT_DIR, label_y)
+
+    # Verify the file creation
+    logger.info(f"Listing files in RESULT_DIR: {os.listdir(RESULT_DIR)}")
