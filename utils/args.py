@@ -17,6 +17,7 @@ def add_default_args(parser: argparse.ArgumentParser):
     parser.add_argument("--wandb_dir", type=str, default="./", help="wandb log directory")
     parser.add_argument("--output_dir", type=str, default="outputs", help="output directory")
     parser.add_argument("--output_file", type=str, default="prediction_raw.json", help="output file name")
+    parser.add_argument("--commit_message", type=str, default="Push model using huggingface_hub", help="push_to_hub commit_message")
 
     # basic parameters
     parser.add_argument("--model_name", type=str, default=None)

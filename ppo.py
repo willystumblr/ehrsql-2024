@@ -306,6 +306,5 @@ if __name__=="__main__":
     os.makedirs(save_path, exist_ok=True)
     # ppo_trainer.save_pretrained(save_path)
     repo_id = f"{args.project_name}-{args.model_name.split('/')[-1]}"
-    model = ppo_trainer.accelerator.unwrap_model(ppo_trainer.model)
-    model.push_to_hub(repo_id)
-    tokenizer.push_to_hub(repo_id)
+    ppo_trainer.model = ppo_trainer.accelerator.unwrap_model(ppo_trainer.model)
+    ppo_trainer.push_to_hub(repo_id, token=HF_W_TOKEN, commit_message=args.commit_message)

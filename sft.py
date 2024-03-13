@@ -135,7 +135,7 @@ if __name__=='__main__':
     
     trainer.train()
     torch.cuda.empty_cache()
-    model = trainer.accelerator.unwrap_model(trainer.model)
-    model.push_to_hub(training_args.output_dir, token=HF_W_TOKEN)
+    trainer.model = trainer.accelerator.unwrap_model(trainer.model)
+    trainer.push_to_hub()
     #trainer.push_to_hub()
 
