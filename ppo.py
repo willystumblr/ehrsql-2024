@@ -2,7 +2,7 @@ import json
 import numpy as np
 import pandas as pd
 from collections import Counter
-from datasets import Dataset
+from datasets import Dataset, concatenate_datasets
 import os
 from tqdm.auto import tqdm
 import wandb
@@ -194,10 +194,20 @@ if __name__=="__main__":
     if args.sample_ratio<1:
         logger.info("*** Sampling PPO Datasets... ***")
         num_samples=int(len(train_data)*args.sample_ratio)
-        train_sample = train_data.select(random.sample(range(len(train_data)), num_samples))
-        null_count = len(list(filter(lambda x: x['label']=='null', train_sample)))
-        while (null_count > args.num_samples*0.5) or (null_count < num_samples*0.3):
-            train_sample = train_data.select(random.sample(range(len(train_data)), num_samples))
+        num_nulls = int(num_samples*0.3)
+        
+        nulls = train_data.filter(lambda x: x['label']=='null')
+        non_nulls = train_data.filter(lambda x: x['label']!='null')
+        
+        nulls_sample = nulls.select(random.sample(range(len(nulls)), num_nulls))
+        non_nulls_sample = non_nulls.select(random.sample(range(len(non_nulls)), num_samples-num_nulls))
+        
+        train_sample = concatenate_datasets([nulls_sample, non_nulls_sample]).shuffle()
+        # train_sample = train_data.select(random.sample(range(len(train_data)), num_samples))
+        # null_count = len(list(filter(lambda x: x['label']=='null', train_sample)))
+        
+        # while (null_count > args.num_samples*0.5) or (null_count < num_samples*0.3):
+        #     train_sample = train_data.select(random.sample(range(len(train_data)), num_samples))
         ppo_dataset = train_sample.map(create_ppo_prompt)
     else:
         ppo_dataset = train_data.map(create_ppo_prompt)
