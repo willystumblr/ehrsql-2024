@@ -201,7 +201,7 @@ if __name__=="__main__":
     )
 
     model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
-    tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
 
     # Perform inference on the validation set
     valid_eval = generate_sql(model, tokenizer, valid_data, args)
@@ -225,7 +225,7 @@ if __name__=="__main__":
     accuracy10 = penalize(scores, penalty=10)
     accuracyN = penalize(scores, penalty=len(scores))
 
-    print(f"RS without filtering unanswerable queries: Accuracy0: {accuracy0}, Accuracy5: {accuracy5}, Accuracy10: {accuracy10}, AccuracyN: {accuracyN}")
+    logger.info(f"*** RS without filtering unanswerable queries: Accuracy0: {accuracy0}, Accuracy5: {accuracy5}, Accuracy10: {accuracy10}, AccuracyN: {accuracyN} ***")
     # Calculate threshold for filtering unanswerable queries
     threshold = get_threshold(id2maxent, score_dict)
     logger.info(f"Threshold for filtering: {threshold}")
@@ -245,7 +245,7 @@ if __name__=="__main__":
     accuracyN_filtered = penalize(scores_filtered, penalty=len(scores))
 
     # Output the refined RS scores with abstention
-    print(f"RS with filtered unanswerable queries: Accuracy0: {accuracy0_filtered}, Accuracy5: {accuracy5_filtered}, Accuracy10: {accuracy10_filtered}, AccuracyN: {accuracyN_filtered}")
+    logger.info(f"*** RS with filtered unanswerable queries: Accuracy0: {accuracy0_filtered}, Accuracy5: {accuracy5_filtered}, Accuracy10: {accuracy10_filtered}, AccuracyN: {accuracyN_filtered} ***")
     ##### Submission #####
     test_eval = generate_sql(model, tokenizer, test_data, args)
 
@@ -253,11 +253,12 @@ if __name__=="__main__":
     from utils.data_io import write_json as write_label
 
     # Save the filtered predictions to a JSON file
-    run_name = args.load_checkpoint_path.split("/")[-1]
+    run_name = args.model_name.split("/")[-1]
     os.makedirs(os.path.join(RESULT_DIR, run_name), exist_ok=True)
 
     SCORING_OUTPUT_DIR = os.path.join(os.path.join(RESULT_DIR, run_name), 'prediction.json')
     write_label(SCORING_OUTPUT_DIR, label_y)
 
     # Verify the file creation
-    logger.info(f"Listing files in RESULT_DIR: {os.listdir(RESULT_DIR)}")
+    logger.info(f"*** Listing files in RESULT_DIR: {os.path.join(RESULT_DIR, run_name)} ***")
+    logger.info(f"Done")
