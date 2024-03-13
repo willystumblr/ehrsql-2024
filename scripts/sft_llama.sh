@@ -1,4 +1,4 @@
-python sft.py \
+python -m torch.distributed.launch --nproc_per_node 2 sft.py \
     --train_type=SFT \
     --project_name=ehrsql-2024-sft \
     --model_name=meta-llama/Llama-2-7b-hf \

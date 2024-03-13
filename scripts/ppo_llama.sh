@@ -1,11 +1,10 @@
-python ppo.py \
+python -m torch.distributed.launch --nproc_per_node 2 ppo.py \
     --train_type=PPO \
     --project_name=ehrsql-2024-ppo \
-    --train_epochs=3 \
-    --train_batch_size=4 \
-    --model_name=meta-llama/Llama-2-7b-hf \
+    --train_epochs=5 \
+    --train_batch_size=8 \
     --learning_rate=1e-3 \
     --load_checkpoint_path=/path/to/adapter \
     --bf16=1 \
-    --num_samples=400 \
-    --gradient_accumulation_steps=1
+    --gradient_accumulation_steps=1 \
+    --phase=dev_final
