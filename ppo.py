@@ -233,7 +233,7 @@ if __name__=="__main__":
 
     # Same config with SFT
     model_config = dict(
-        device_map={"": Accelerator().local_process_index},
+        device_map={"": Accelerator().process_index},
         trust_remote_code=True,
         torch_dtype=torch.bfloat16 if args.bf16 else "auto",
         use_cache=False,
@@ -263,7 +263,7 @@ if __name__=="__main__":
     Technically yes, but I would advise to first merge the sft_model into a single base model and pass the merged model to AutoModelForCausalLMWithValueHead.
     """
 
-    model = AutoModelForCausalLMWithValueHead.from_pretrained(model, model_config)
+    model = AutoModelForCausalLMWithValueHead.from_pretrained(model, config=model_config, peft_config=peft_parameters)
     
     ref_model = None # Default value
 
