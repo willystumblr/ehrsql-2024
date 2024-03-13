@@ -315,5 +315,5 @@ if __name__=="__main__":
     # ppo_trainer.save_pretrained(save_path)
     repo_id = f"{args.project_name}-{args.model_name.split('/')[-1]}"
     model = ppo_trainer.accelerator.unwrap_model(ppo_trainer.model)
-    model.save_pretrained(repo_id, push_to_hub=True)
-    tokenizer.save_pretrained(repo_id, push_to_hub=True)
+    model.push_to_hub(repo_id, safe_serialization=False)
+    tokenizer.push_to_hub(repo_id)
