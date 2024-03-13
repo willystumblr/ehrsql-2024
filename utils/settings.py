@@ -21,8 +21,8 @@ def wandb_setup(args: argparse.Namespace, key = API):
     # os.makedirs(wandb_path)
     wandb.init(project=args.project_name, dir=args.wandb_dir)
     
-def huggingface_login(key=HF_TOKEN):
-    login(token=HF_TOKEN)
+def huggingface_login(key=HF_W_TOKEN):
+    login(token=HF_W_TOKEN)
 
 def set_seed(args):
     """
