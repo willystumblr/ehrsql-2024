@@ -125,7 +125,7 @@ def generate_sql(model, tokenizer, test_dataset, args, gen_config=None):
             entropy_list.append(entropy_truncated)
 
         pred_list = tokenizer.batch_decode(preds[:, inputs.shape[1]:], skip_special_tokens=True)
-        print(pred_list)
+        # print(pred_list)
         # print(pred_list)
 
         # Construct the output results for each prediction.
