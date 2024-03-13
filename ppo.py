@@ -191,12 +191,13 @@ if __name__=="__main__":
 
     train_data, valid_data, test_data = build_dataset(args.phase)
 
-    if args.num_samples>1:
+    if args.sample_ratio<1:
         logger.info("*** Sampling PPO Datasets... ***")
-        train_sample = train_data.select(random.sample(range(len(train_data)), args.num_samples))
+        num_samples=int(len(train_data)*args.sample_ratio)
+        train_sample = train_data.select(random.sample(range(len(train_data)), num_samples))
         null_count = len(list(filter(lambda x: x['label']=='null', train_sample)))
-        while (null_count > args.num_samples*0.2) or (null_count < args.num_samples*0.05):
-            train_sample = train_data.select(random.sample(range(len(train_data)), args.num_samples))
+        while (null_count > args.num_samples*0.5) or (null_count < num_samples*0.3):
+            train_sample = train_data.select(random.sample(range(len(train_data)), num_samples))
         ppo_dataset = train_sample.map(create_ppo_prompt)
     else:
         ppo_dataset = train_data.map(create_ppo_prompt)
