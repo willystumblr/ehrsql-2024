@@ -235,10 +235,10 @@ if __name__=="__main__":
     ### NOTE: args.load_checkpoint_path contains both adapter config and tokenizer config!
     logger.info("*** Loading checkpoints ***")
     tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path, padding_side='left')
-    model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
-    model = PeftModel.from_pretrained(model, args.load_checkpoint_path, is_trainable=True)
+    model = AutoModelForCausalLM.from_pretrained(args.load_checkpoint_path, config=model_config) # We're not going to use Peft this time
+    # model = PeftModel.from_pretrained(model, args.load_checkpoint_path, is_trainable=True)
 
-    model.merge_and_unload()
+    # model.merge_and_unload()
     """
     from: https://github.com/huggingface/trl/issues/1036
 
@@ -249,19 +249,11 @@ if __name__=="__main__":
 
     model = AutoModelForCausalLMWithValueHead.from_pretrained(model, model_config)
     
-    ### initialize reference model
-    if not model.is_peft_model:
-        ref_model = AutoModelForCausalLM.from_pretrained(args.model_name, trust_remote_code=True, )
-        ref_model = PeftModel.from_pretrained(ref_model, args.load_ref_checkpoint_path, is_trainable=False) # fresse Peft
-        ref_model.merge_and_unload()
-        
-        ref_model = AutoModelForCausalLMWithValueHead.from_pretrained(ref_model, model_config)
-    else:
-        ref_model = None # Default value
+    ref_model = None # Default value
 
     ppo_trainer = PPOTrainer(
         model=model,
-        ref_model=ref_model,
+        ref_model=None,
         config=ppo_config,
         dataset=ppo_dataset,
         tokenizer=tokenizer
@@ -315,5 +307,5 @@ if __name__=="__main__":
     # ppo_trainer.save_pretrained(save_path)
     repo_id = f"{args.project_name}-{args.model_name.split('/')[-1]}"
     model = ppo_trainer.accelerator.unwrap_model(ppo_trainer.model)
-    model.push_to_hub(repo_id, safe_serialization=False)
+    model.push_to_hub(repo_id)
     tokenizer.push_to_hub(repo_id)
