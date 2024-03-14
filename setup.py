@@ -14,6 +14,6 @@ setup(
         'xformers==0.0.24',
         'accelerate==0.27.2',
         'bitsandbytes==0.42.0',
-        # 'unsloth[conda] @ git+https://github.com/unslothai/unsloth.git@February-Gemma-2024'
+        'unsloth[conda] @ git+https://github.com/unslothai/unsloth.git'
     ]
 )
