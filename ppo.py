@@ -263,7 +263,7 @@ if __name__=="__main__":
     Technically yes, but I would advise to first merge the sft_model into a single base model and pass the merged model to AutoModelForCausalLMWithValueHead.
     """
 
-    model = AutoModelForCausalLMWithValueHead.from_pretrained(model, config=model_config, peft_config=peft_parameters)
+    model = AutoModelForCausalLMWithValueHead.from_pretrained(model, config=model_config)
     
     ref_model = None # Default value
 
