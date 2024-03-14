@@ -1,9 +1,7 @@
-export PJRT_DEVICE=CUDA
-
 python -m torch.distributed.launch --nproc_per_node 2 sft_unsloth.py \
     --train_type=SFT \
     --project_name=ehrsql-2024-sft \
-    --model_name=unsloth/codellama-7b \
+    --model_name=unsloth/codellama-7b-bnb-4bit \
     --train_epochs=3 \
     --train_batch_size=8 \
     --valid_batch_size=4 \
