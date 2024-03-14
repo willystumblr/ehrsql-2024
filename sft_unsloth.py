@@ -70,12 +70,6 @@ if __name__=='__main__':
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(str(i) for i in range(torch.cuda.device_count()))
 
-
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
-    tokenizer.pad_token = tokenizer.eos_token
-    add_tokens = ["<", "<=", "<>"]
-    tokenizer.add_tokens(add_tokens)
-
     peft_parameters = LoraConfig(
         lora_alpha=args.lora_alpha,
         lora_dropout=args.lora_dropout,
@@ -85,6 +79,11 @@ if __name__=='__main__':
         target_modules=["q_proj", "k_proj","v_proj","o_proj"]
     )
 
+    if not torch.backends.cudnn.benchmark:
+        torch.backends.cudnn.benchmark = True
+    if not torch.backends.cudnn.enabled:
+        torch.backends.cudnn.enabled = True
+       
 
     # model_config = dict(
     #     device_map={"": Accelerator().process_index},
@@ -124,6 +123,9 @@ if __name__=='__main__':
                                             device_map={"": Accelerator().process_index},
                                             trust_remote_code=True
                                         )
+    tokenizer.pad_token = tokenizer.eos_token
+    add_tokens = ["<", "<=", "<>"]
+    tokenizer.add_tokens(add_tokens)
 
     trainer = SFTTrainer(
         model=model,
