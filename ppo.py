@@ -1,4 +1,3 @@
-import json
 import numpy as np
 import pandas as pd
 from collections import Counter
@@ -9,12 +8,12 @@ import wandb
 import random
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from utils.args import add_default_args
-from utils.settings import set_seed, wandb_setup, huggingface_login, HF_W_TOKEN
-from peft import LoraConfig, PeftConfig, PeftModel
+from utils.settings import set_seed, wandb_setup, huggingface_login, HF_W_TOKEN, PADDING_MAP
+from peft import LoraConfig, PeftModel
 
 import torch
 import argparse
-from utils.prompt import create_eval_prompt_batch, create_ppo_prompt, create_prompt, create_sample_prompt
+from utils.prompt import create_ppo_prompt
 import sqlite3
 from trl import PPOConfig, PPOTrainer, AutoModelForCausalLMWithValueHead
 from utils.data_io import (
@@ -25,7 +24,6 @@ from utils.data_io import (
 import time
 from accelerate import Accelerator
 import logging
-import sqlparse
 """
 python ppo.py \
     --train_type=PPO \
@@ -251,9 +249,11 @@ if __name__=="__main__":
     ### NOTE: args.load_checkpoint_path contains both adapter config and tokenizer config!
     logger.info("*** Loading checkpoints ***")
     tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path, padding_side='left')
-    model = AutoModelForCausalLM.from_pretrained(args.load_checkpoint_path, config=model_config) # We're not going to use Peft this time
-    # model = PeftModel.from_pretrained(model, args.load_checkpoint_path, is_trainable=True)
-
+    model = AutoModelForCausalLM.from_pretrained(args.model_name,      
+                                                 **model_config, 
+                                                 )   # We're not going to use additional Peft this time
+    model = PeftModel.from_pretrained(model, args.load_checkpoint_path, is_trainable=True)
+    # logger.info(f"*** Avaiable: {} ***")
     # model.merge_and_unload()
     """
     from: https://github.com/huggingface/trl/issues/1036
