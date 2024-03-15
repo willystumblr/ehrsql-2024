@@ -39,6 +39,10 @@ def set_seed(args):
 
 
 class LLMSampleCB(WandbCallback):
+    """
+    Reference: 
+    https://wandb.ai/capecape/alpaca_ft/reports/How-to-Fine-tune-an-LLM-Part-3-The-HuggingFace-Trainer--Vmlldzo1OTEyNjMy
+    """
     def __init__(self, trainer, test_dataset, num_samples=10, max_new_tokens=256, log_model="checkpoint"):
         super().__init__()
         self._log_model = log_model

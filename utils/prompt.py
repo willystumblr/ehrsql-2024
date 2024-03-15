@@ -9,7 +9,8 @@ def create_prompt(example):
             "question: query,
             "label": answer,
         }
-
+    Reference:
+    https://wandb.ai/capecape/alpaca_ft/reports/How-to-Fine-tune-an-LLM-Part-3-The-HuggingFace-Trainer--Vmlldzo1OTEyNjMy
     """
     # print(item)
     prompt=None
@@ -35,7 +36,8 @@ def create_eval_prompt_batch(batch):
             "question": [] # list of questions, len(batch)
             "label": [] # list of labels, len(batch) (optional for evaluation)
         }
-
+    Reference:
+    https://wandb.ai/capecape/alpaca_ft/reports/How-to-Fine-tune-an-LLM-Part-3-The-HuggingFace-Trainer--Vmlldzo1OTEyNjMy
     """
     prompts = []
 
@@ -60,6 +62,8 @@ def create_sample_prompt(example):
             "question: query,
             "label": answer,
         }
+    Reference:
+    https://wandb.ai/capecape/alpaca_ft/reports/How-to-Fine-tune-an-LLM-Part-3-The-HuggingFace-Trainer--Vmlldzo1OTEyNjMy
     """
     label = example['label']
     example['label'] = ''
@@ -78,6 +82,8 @@ def create_ppo_prompt(example):
             "label": answer,
             "answer": sql query answer
         }
+    Reference:
+    https://wandb.ai/capecape/alpaca_ft/reports/How-to-Fine-tune-an-LLM-Part-3-The-HuggingFace-Trainer--Vmlldzo1OTEyNjMy
     """
     label = example['label']
     example['label'] = ''
