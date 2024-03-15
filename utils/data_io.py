@@ -12,11 +12,9 @@ SCORE_PROGRAM_DIR = f'{BASE_DIR}/scoring_program/'
 
 # File paths for the dataset and labels
 TABLES_PATH = os.path.join(BASE_DATA_DIR, 'tables.json')                # JSON containing database schema
-TRAIN_DATA_PATH = os.path.join(BASE_DATA_DIR, 'train', 'data.json')     # JSON file with natural language questions for training data
-TRAIN_LABEL_PATH = os.path.join(BASE_DATA_DIR, 'train', 'label.json')   # JSON file with corresponding SQL queries for training data
-TRAIN_ANSWER_PATH = os.path.join(BASE_DATA_DIR, 'train', 'answer.json') # JSON file with fetched answers for eah SQL query for training data
-VALID_DATA_PATH = os.path.join(BASE_DATA_DIR, 'valid', 'data.json')     # JSON file for validation data
-TEST_DATA_DIR = os.path.join(BASE_DATA_DIR, 'test', 'data.json') 
+TRAIN_DATA_DIR = os.path.join(BASE_DATA_DIR, 'train') # JSON file with fetched answers for eah SQL query for training data
+VALID_DATA_DIR = os.path.join(BASE_DATA_DIR, 'valid')     # JSON file for validation data
+TEST_DATA_DIR = os.path.join(BASE_DATA_DIR, 'test')
 DB_PATH = os.path.join(BASE_DATA_DIR, f'{DB_ID}.sqlite')                # Database path
 
 # Will be deprecated during test phase
@@ -40,9 +38,9 @@ def build_dataset(phase):
     if phase == 'dev':
         train_path, valid_path, test_path = NEW_TRAIN_DIR, NEW_VALID_DIR, NEW_TEST_DIR  
     elif phase == 'dev_final':
-        train_path, valid_path, test_path = TRAIN_DATA_PATH, VALID_DATA_PATH, None
+        train_path, valid_path, test_path = TRAIN_DATA_DIR, VALID_DATA_DIR, None
     else:
-        train_path, valid_path, test_path = TRAIN_DATA_PATH, VALID_DATA_PATH, TEST_DATA_DIR
+        train_path, valid_path, test_path = TRAIN_DATA_DIR, VALID_DATA_DIR, TEST_DATA_DIR
     
     
     new_train_data = read_json(os.path.join(train_path, 'data.json'))
