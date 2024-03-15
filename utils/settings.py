@@ -65,7 +65,7 @@ class LLMSampleCB(WandbCallback):
             records_table.add_data(prompt, generation, target, *list(self.gen_config.to_dict().values()))
         return records_table
 
-    def on_evaluate(self, args, state, control,  **kwargs):
-        super().on_evaluate(args, state, control, **kwargs)
+    def on_save(self, args, state, control,  **kwargs):
+        super().on_save(args, state, control, **kwargs)
         records_table = self.samples_table(self.sample_dataset)
         self._wandb.log({"sample_predictions":records_table})
