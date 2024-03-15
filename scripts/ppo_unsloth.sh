@@ -1,11 +1,12 @@
-export PJRT_DEVICE=CUDA
-python -m torch.distributed.launch --nproc_per_node 2 ppo_unsloth.py \
+python ppo_unsloth.py \
     --train_type=PPO \
     --project_name=ehrsql-2024-ppo \
-    --train_epochs=5 \
-    --train_batch_size=8 \
+    --train_epochs=3 \
+    --train_batch_size=6 \
     --learning_rate=1e-3 \
-    --load_checkpoint_path=/path/to/adapter \
+    --model_name=unsloth/codellama-7b-bnb-4bit \
+    --load_checkpoint_path=willystumblr/ehrsql-2024-sft-codellama-7b-bnb-4bit \
     --bf16=1 \
     --gradient_accumulation_steps=1 \
-    --phase=dev \
+    --phase=dev_final \
+    --sample_ratio=.25

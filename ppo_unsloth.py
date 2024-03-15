@@ -253,7 +253,7 @@ if __name__=="__main__":
     # model = AutoModelForCausalLM.from_pretrained(args.load_checkpoint_path, config=model_config) # We're not going to use Peft this time
     # model = PeftModel.from_pretrained(model, args.load_checkpoint_path, is_trainable=True)
     model, tokenizer = FastLanguageModel.from_pretrained(
-                                        args.model_name, 
+                                        args.load_checkpoint_path, 
                                         max_seq_length=args.max_seq_length, 
                                         dtype=torch.bfloat16 if args.bf16 else "auto",
                                         device_map={"": Accelerator().process_index},
