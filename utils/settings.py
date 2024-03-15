@@ -16,6 +16,11 @@ API = "e845b522dd2be52f09a0b6b36051a1007fb1bda7"
 HF_TOKEN = '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'
 HF_W_TOKEN = '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'
 
+PADDING_MAP = {
+    'google/gemma-2b-it':'right',
+    'meta-llama/Llama-2-7b-hf':'left',
+}
+
 def wandb_setup(args: argparse.Namespace, key = API):
     wandb.login(key=API)
     # os.makedirs(wandb_path)
@@ -48,12 +53,17 @@ class LLMSampleCB(WandbCallback):
         self._log_model = log_model
         self.sample_dataset = test_dataset.select(range(num_samples))
         self.model, self.tokenizer = trainer.model, trainer.tokenizer
+        self.max_new_tokens = max_new_tokens
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.gen_config = GenerationConfig.from_pretrained(trainer.model.name_or_path,
                                                            max_new_tokens=max_new_tokens)
     def generate(self, prompt):
-        tokenized_prompt = self.tokenizer(prompt, return_tensors='pt')['input_ids'].cuda()
+        tokenized_prompt = self.tokenizer(prompt, return_tensors='pt').to(self.device)
         with torch.inference_mode():
-            output = self.model.generate(inputs=tokenized_prompt, generation_config=self.gen_config)
+            try:
+                output = self.model.generate(inputs=tokenized_prompt['input_ids'], generation_config=self.gen_config)
+            except:
+                output = self.model.generate(**tokenized_prompt, max_new_tokens=self.max_new_tokens)
         return self.tokenizer.decode(output[0][len(tokenized_prompt[0]):], skip_special_tokens=True)
 
     def samples_table(self, examples):

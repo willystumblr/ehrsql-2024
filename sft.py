@@ -9,7 +9,7 @@ import random
 import argparse
 import wandb
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from utils.settings import set_seed, wandb_setup, huggingface_login, LLMSampleCB, HF_W_TOKEN
+from utils.settings import set_seed, wandb_setup, huggingface_login, LLMSampleCB, HF_W_TOKEN, PADDING_MAP
 from peft import LoraConfig # get_peft_model
 from trl.trainer import SFTTrainer
 # from trl.trainer import get_kbit_device_map, get_quantization_config
@@ -69,8 +69,8 @@ if __name__=='__main__':
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(str(i) for i in range(torch.cuda.device_count()))
 
-
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+    padding_side = PADDING_MAP[args.model_name]
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name, padding_side=padding_side)
     tokenizer.pad_token = tokenizer.eos_token
     add_tokens = ["<", "<=", "<>"]
     tokenizer.add_tokens(add_tokens)
@@ -93,7 +93,7 @@ if __name__=='__main__':
     )
     save_dir = f"{args.output_dir}/{wandb.run.name}"
     
-    model = AutoModelForCausalLM.from_pretrained(args.model_name, model_config)
+    model = AutoModelForCausalLM.from_pretrained(args.model_name, **model_config)
     
     os.makedirs(save_dir, exist_ok=True)
     training_args = TrainingArguments(
@@ -128,10 +128,10 @@ if __name__=='__main__':
         formatting_func=create_prompt, # format samples with a model schema
     )
 
-    if args.phase != 'dev':
-        sample_dataset = valid_data.map(create_sample_prompt)
-        wandb_callback = LLMSampleCB(trainer, sample_dataset, num_samples=20, max_new_tokens=args.max_new_tokens)
-        trainer.add_callback(wandb_callback)
+    
+    sample_dataset = valid_data.map(create_sample_prompt) if args.phase == 'dev' else train_data.map(create_sample_prompt)
+    wandb_callback = LLMSampleCB(trainer, sample_dataset, max_new_tokens=args.max_new_tokens)
+    trainer.add_callback(wandb_callback)
     
     trainer.train()
     torch.cuda.empty_cache()
