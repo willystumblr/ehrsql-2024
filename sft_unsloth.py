@@ -92,7 +92,7 @@ if __name__=='__main__':
     #     use_cache=False,
     # )
     save_dir = f"{args.output_dir}/{wandb.run.name}"
-    
+    repo_id = f"{args.project_name}-{args.model_name.split('/')[-1]}"
     
     
     os.makedirs(save_dir, exist_ok=True)
@@ -111,9 +111,9 @@ if __name__=='__main__':
         save_steps=args.save_steps,
         load_best_model_at_end=args.load_best_model_at_end,
         logging_first_step=args.logging_first_step,
-        push_to_hub=True,
-        push_to_hub_model_id=f"{args.project_name}-{args.model_name.split('/')[-1]}",
-        push_to_hub_token=HF_W_TOKEN
+        # push_to_hub=True,
+        # push_to_hub_model_id=f"{args.project_name}-{args.model_name.split('/')[-1]}",
+        # push_to_hub_token=HF_W_TOKEN
     )
     
     model, tokenizer = FastLanguageModel.from_pretrained(
@@ -146,6 +146,7 @@ if __name__=='__main__':
     trainer.train()
     torch.cuda.empty_cache()
     trainer.model = trainer.accelerator.unwrap_model(trainer.model)
-    trainer.push_to_hub()
+    trainer.model.push_to_hub(repo_id)
+    # trainer.push_to_hub()
     #trainer.push_to_hub()
 
