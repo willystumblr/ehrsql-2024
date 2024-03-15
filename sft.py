@@ -107,7 +107,7 @@ if __name__=='__main__':
         gradient_accumulation_steps=args.gradient_accumulation_steps, # simulate larger batch sizes
         bf16=args.bf16,
         evaluation_strategy=args.evaluation_strategy,
-        save_strategy=args.evaluation_strategy, # if load_best_model_at_end=True
+        save_strategy=args.save_strategy, # if load_best_model_at_end=True
         save_steps=args.save_steps,
         load_best_model_at_end=args.load_best_model_at_end,
         logging_first_step=args.logging_first_step,
