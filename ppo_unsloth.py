@@ -14,7 +14,7 @@ from peft import LoraConfig, PeftConfig, PeftModel
 
 import torch
 import argparse
-from utils.prompt import create_eval_prompt_batch, create_ppo_prompt, create_prompt, create_sample_prompt
+from utils.prompt import create_ppo_prompt
 import sqlite3
 from trl import PPOConfig, PPOTrainer, AutoModelForCausalLMWithValueHead
 from utils.data_io import (
@@ -22,10 +22,8 @@ from utils.data_io import (
     BASE_CKPT_DIR,
     build_dataset,
 )
-import time
 from accelerate import Accelerator
 import logging
-import sqlparse
 from unsloth import FastLanguageModel
 """
 python ppo.py \
