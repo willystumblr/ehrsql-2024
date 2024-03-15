@@ -52,7 +52,7 @@ def build_dataset(phase):
 
     train_data = Dataset.from_list(train_dataset)
     ### TODO: leave it for now..
-    if phase!='test':
+    if phase=='dev':
         new_valid_data = read_json(os.path.join(valid_path, 'data.json'))
         new_valid_label = read_json(os.path.join(valid_path, "label.json"))
         valid_dataset = [{"id": d['id'], "question":d['question'], "label":l[1]} for d, l in zip(new_valid_data['data'], new_valid_label.items())]
@@ -62,9 +62,10 @@ def build_dataset(phase):
         new_test_data = read_json(os.path.join(NEW_TEST_DIR, "data.json"))
         test_dataset = [{"id": d['id'], "question":d['question']} for d in new_test_data['data']]
         test_data = Dataset.from_list(test_dataset)
-    else:
+    elif phase=='dev_final':
         valid_data=None
         test_data=None 
-    
+    else:
+        pass
     
     return train_data, valid_data, test_data
