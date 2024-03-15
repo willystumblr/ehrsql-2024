@@ -41,13 +41,14 @@ def add_default_args(parser: argparse.ArgumentParser):
     parser.add_argument("--max_grad_norm", type=str, default=1.0)
     parser.add_argument("--weight_decay", type=float, default=0.1)
     parser.add_argument("--adam_epsilon", type=float, default=1e-8)
-    parser.add_argument("--evaluation_strategy", type=str, default='no')
-    parser.add_argument("--save_strategy", type=str, default='epoch')
+    parser.add_argument("--evaluation_strategy", type=str, default='no', choices=['no', 'steps', 'epoch'])
+    parser.add_argument("--logging_strategy", type=str, default='epoch', choices=['no', 'steps', 'epoch'])
+    parser.add_argument("--save_strategy", type=str, default='epoch', choices=['no', 'steps', 'epoch'])
     parser.add_argument("--eval_steps", type=int, default=50)
     parser.add_argument("--logging_steps", type=int, default=50) #logging_first_step
-    parser.add_argument("--logging_first_step", type=bool, default=True)
     parser.add_argument("--save_steps", type=int, default=100)
-    parser.add_argument("--load_best_model_at_end", type=bool, default=True)
+    parser.add_argument("--logging_first_step", type=bool, default=False)
+    parser.add_argument("--load_best_model_at_end", type=bool, default=False)
     parser.add_argument("--sample_ratio", type=float, default=0.1)
 
     # lora parameters
