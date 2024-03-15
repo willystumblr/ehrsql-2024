@@ -139,7 +139,7 @@ if __name__=='__main__':
     )
 
     sample_dataset = valid_data.map(create_sample_prompt) if args.phase == 'dev' else train_data.map(create_sample_prompt)
-    wandb_callback = LLMSampleCB(trainer, sample_dataset, num_samples=20, max_new_tokens=args.max_new_tokens)
+    wandb_callback = LLMSampleCB(trainer, sample_dataset, num_samples=10, max_new_tokens=args.max_new_tokens)
     trainer.add_callback(wandb_callback)
     
     trainer.train()
