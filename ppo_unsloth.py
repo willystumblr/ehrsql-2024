@@ -231,12 +231,11 @@ if __name__=="__main__":
 
 
     # Same config with SFT
-    # model_config = dict(
-    #     device_map={"": Accelerator().process_index},
-    #     trust_remote_code=True,
-    #     torch_dtype=torch.bfloat16 if args.bf16 else "auto",
-    #     use_cache=False,
-    # )
+    model_config = dict(
+        device_map={"": Accelerator().process_index},
+        trust_remote_code=True,
+        torch_dtype=torch.bfloat16 if args.bf16 else "auto",
+    )
 
     peft_parameters = LoraConfig(
         lora_alpha=args.lora_alpha,
@@ -252,14 +251,15 @@ if __name__=="__main__":
     # tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path, padding_side='left')
     # model = AutoModelForCausalLM.from_pretrained(args.load_checkpoint_path, config=model_config) # We're not going to use Peft this time
     # model = PeftModel.from_pretrained(model, args.load_checkpoint_path, is_trainable=True)
-    model, tokenizer = FastLanguageModel.from_pretrained(
-                                        args.load_checkpoint_path, 
+    model, _ = FastLanguageModel.from_pretrained(
+                                        args.model_name, 
                                         max_seq_length=args.max_seq_length, 
                                         dtype=torch.bfloat16 if args.bf16 else "auto",
                                         device_map={"": Accelerator().process_index},
                                         trust_remote_code=True
                                     )
-
+    tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path, padding_side='left')
+    model = PeftModel.from_pretrained(model, args.load_checkpoint_path, is_trainable=True)
     # model.merge_and_unload()
     """
     from: https://github.com/huggingface/trl/issues/1036
