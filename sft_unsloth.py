@@ -133,7 +133,6 @@ if __name__=='__main__':
         train_dataset=train_data,
         eval_dataset=valid_data if args.phase == 'dev' else None,
         packing=True, # pack samples together for efficient training
-        max_seq_length=args.max_seq_length, # maximum packed length
         args=training_args,
         peft_config=peft_parameters,
         formatting_func=create_prompt, # format samples with a model schema

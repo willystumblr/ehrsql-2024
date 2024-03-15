@@ -42,7 +42,7 @@ def add_default_args(parser: argparse.ArgumentParser):
     parser.add_argument("--weight_decay", type=float, default=0.1)
     parser.add_argument("--adam_epsilon", type=float, default=1e-8)
     parser.add_argument("--evaluation_strategy", type=str, default='no')
-    parser.add_argument("--save_strategy", type=str, default='steps')
+    parser.add_argument("--save_strategy", type=str, default='epoch')
     parser.add_argument("--eval_steps", type=int, default=50)
     parser.add_argument("--logging_steps", type=int, default=50) #logging_first_step
     parser.add_argument("--logging_first_step", type=bool, default=True)
