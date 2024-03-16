@@ -10,7 +10,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from utils.args import add_default_args
 from utils.settings import set_seed, wandb_setup, huggingface_login, HF_W_TOKEN, PADDING_MAP
 from peft import LoraConfig, PeftModel
-
+from torch import optim
 import torch
 import argparse
 from utils.prompt import create_ppo_prompt
@@ -24,6 +24,8 @@ from utils.data_io import (
 import time
 from accelerate import Accelerator
 import logging
+import sqlparse
+
 """
 python ppo.py \
     --train_type=PPO \
@@ -128,6 +130,65 @@ def reward_model_v2(sql_file_path, target_query, pred_query):
             return 0.0 ### syntax correct, but cannot operate
     else:
         return -1.0 ## wrong syntax
+    
+def reward_model_v3(sql_file_path, target_query, pred_query):
+    """_summary_ 
+    Rule-based reward model. Reward is determined by the followings:
+    - executable
+    - correctness
+    - query complexity
+    """ 
+    executable, correctness, complexity = 0.0, 0.0, 0.0
+    w1, w2, w3 = 4.5, 3.5, 2.0
+    ### null handling
+    if target_query=='null':
+        executable, correctness, complexity = (1.0, 1.0, 0.0) if pred_query == 'null' else (-1.0, -1.0, 0.0)
+    else:
+        valid = syntax_checker(pred_query)
+        
+        if valid:
+            pred_output = None
+            target_output = execute_query(sql_file_path, target_query)
+            target_complexity = compute_query_complexity(target_query)
+            try:
+                pred_output = execute_query(sql_file_path, pred_query)
+                pred_complexity = compute_query_complexity(target_query)
+                if target_output==pred_output:
+                    executable, correctness, complexity = (1.0, 1.0, pred_complexity / target_complexity)
+                else: ### Incorrect output but executable
+                    executable, correctness, complexity =  (1.0, 0.0, pred_complexity / target_complexity) 
+            except sqlite3.OperationalError as e: 
+                pred_complexity = compute_query_complexity(pred_query)
+                executable, correctness, complexity =  (0.0, 0.0, pred_complexity / target_complexity) ### Syntax correct, but cannot operate
+        else:
+            executable, correctness, complexity =  (-1.0, 0.0, 0) ## wrong syntax
+    return w1*executable+w2*correctness+w3*complexity
+
+def compute_query_complexity(query):
+    """
+    Computes a complexity score for a given SQL query using the sqlparse library.
+    The complexity score is based on the number of joins, subqueries, aggregations,
+    and the length of the query.
+    """
+    parsed = sqlparse.parse(query)[0]  # Parse the query and get the first statement
+
+    # Count the number of joins
+    num_joins = len([tok for tok in parsed.tokens if tok.ttype is sqlparse.tokens.Keyword and tok.value.upper() == 'JOIN'])
+
+    # Count the number of subqueries
+    num_subqueries = len([tok for tok in parsed.tokens if tok.ttype is sqlparse.tokens.Keyword and tok.value.upper() == 'SELECT' and tok.parent.parent is not None])
+
+    # Count the number of aggregations
+    num_aggregations = len([tok for tok in parsed.tokens if tok.ttype is sqlparse.tokens.Keyword and tok.value.upper() in ['SUM', 'AVG', 'COUNT', 'MIN', 'MAX']])
+
+    # Measure the length of the query
+    query_length = len([tok for tok in parsed.flatten()])
+
+    # Compute the complexity score as a weighted sum of the factors
+    complexity_score = 0.3 * num_joins + 0.4 * num_subqueries + 0.2 * num_aggregations + 0.1 * query_length
+
+    return complexity_score
+
 
 def syntax_checker(query):
     valid = False
@@ -220,7 +281,7 @@ if __name__=="__main__":
     ppo_config = PPOConfig(
         log_with ='wandb',
         tracker_project_name=args.project_name,
-        learning_rate=1.41e-5,
+        learning_rate=1e-3,
         ppo_epochs=args.train_epochs,
         batch_size=args.train_batch_size,
         mini_batch_size=args.train_batch_size,
@@ -237,22 +298,21 @@ if __name__=="__main__":
         use_cache=False,
     )
 
-    peft_parameters = LoraConfig(
-        lora_alpha=args.lora_alpha,
-        lora_dropout=args.lora_dropout,
-        r=args.lora_r,
+    lora_config = LoraConfig(
+        r=16,
+        lora_alpha=32,
+        lora_dropout=0.05,
         bias="none",
         task_type="CAUSAL_LM",
-        target_modules=["q_proj", "k_proj","v_proj","o_proj"]
     )
 
     ### NOTE: args.load_checkpoint_path contains both adapter config and tokenizer config!
     logger.info("*** Loading checkpoints ***")
     tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path, padding_side='left')
-    model = AutoModelForCausalLM.from_pretrained(args.model_name,      
-                                                 **model_config, 
-                                                 )   # We're not going to use additional Peft this time
-    model = PeftModel.from_pretrained(model, args.load_checkpoint_path, is_trainable=True)
+    # model = AutoModelForCausalLM.from_pretrained(args.model_name,      
+    #                                              **model_config, 
+    #                                              )   # We're not going to use additional Peft this time
+    # model = PeftModel.from_pretrained(model, args.load_checkpoint_path, is_trainable=True)
     # logger.info(f"*** Avaiable: {} ***")
     # model.merge_and_unload()
     """
@@ -263,18 +323,24 @@ if __name__=="__main__":
     Technically yes, but I would advise to first merge the sft_model into a single base model and pass the merged model to AutoModelForCausalLMWithValueHead.
     """
 
-    model = AutoModelForCausalLMWithValueHead.from_pretrained(model, config=model_config)
+    model = AutoModelForCausalLMWithValueHead.from_pretrained(
+        args.load_checkpoint_path, 
+        peft_config=lora_config,
+        **model_config
+        )
     
     ref_model = None # Default value
+    optimizer = model.parameters
+    
 
     ppo_trainer = PPOTrainer(
         model=model,
         ref_model=None,
         config=ppo_config,
         dataset=ppo_dataset,
-        tokenizer=tokenizer
+        tokenizer=tokenizer,
     )
-
+    ppo_trainer.lr_scheduler = optim.lr_scheduler.CosineAnnealingLR(ppo_trainer.optimizer, T_max=3)
 
     generation_kwargs = {
         "min_length": -1, # don't ignore the EOS token (see above)
@@ -309,8 +375,8 @@ if __name__=="__main__":
             #### Compute reward score
             # rewards = [torch.tensor(reward_model(sql_file_path, csv_dir_path, t, p)) for t, p in zip(targets, batch['response'])]
             # ref_rewards = [torch.tensor(reward_model(sql_file_path, csv_dir_path, t, p)) for t,  p in zip(targets, batch['ref_response'])]
-            rewards = [torch.tensor(reward_model_v2(sql_file_path, t, p)) for t, p in zip(targets, batch['response'])]
-            ref_rewards = [torch.tensor(reward_model_v2(sql_file_path, t, p)) for t, p in zip(targets, batch['ref_response'])]
+            rewards = [torch.tensor(reward_model_v3(sql_file_path, t, p)) for t, p in zip(targets, batch['response'])]
+            ref_rewards = [torch.tensor(reward_model_v3(sql_file_path, t, p)) for t, p in zip(targets, batch['ref_response'])]
             
             batch["ref_rewards"] = ref_rewards
 
