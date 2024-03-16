@@ -19,6 +19,7 @@ HF_W_TOKEN = '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'
 PADDING_MAP = {
     'google/gemma-2b-it':'right',
     'meta-llama/Llama-2-7b-hf':'left',
+    'codellama/CodeLlama-7b-Instruct-hf':'right'
 }
 
 def wandb_setup(args: argparse.Namespace, key = API):
