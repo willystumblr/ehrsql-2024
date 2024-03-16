@@ -52,10 +52,7 @@ def add_default_args(parser: argparse.ArgumentParser):
     parser.add_argument("--sample_ratio", type=float, default=0.1)
 
     # lora parameters
-    parser.add_argument("--lora_alpha", type=int, default=16)
-    parser.add_argument("--lora_dropout", type=int, default=0.1)
-    parser.add_argument("--lora_r", type=int, default=1)
-
+    parser.add_argument("--adapter_config_path", type=str, default=None)
 
     parser.add_argument("--save_every_epoch", type=bool, default=False)
     parser.add_argument("--bf16", type=bool, default=False)
