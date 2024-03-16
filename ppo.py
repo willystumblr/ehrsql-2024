@@ -298,17 +298,9 @@ if __name__=="__main__":
         use_cache=False,
     )
 
-    lora_config = LoraConfig(
-        r=16,
-        lora_alpha=32,
-        lora_dropout=0.05,
-        bias="none",
-        task_type="CAUSAL_LM",
-    )
-
     ### NOTE: args.load_checkpoint_path contains both adapter config and tokenizer config!
     logger.info("*** Loading checkpoints ***")
-    tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path, padding_side='left')
+    tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path, padding_side='left') # decoder-only arch.
     # model = AutoModelForCausalLM.from_pretrained(args.model_name,      
     #                                              **model_config, 
     #                                              )   # We're not going to use additional Peft this time
@@ -324,13 +316,12 @@ if __name__=="__main__":
     """
 
     model = AutoModelForCausalLMWithValueHead.from_pretrained(
-        args.load_checkpoint_path, 
-        peft_config=lora_config,
+        args.load_checkpoint_path,
         **model_config
         )
     
     ref_model = None # Default value
-    optimizer = model.parameters
+    # optimizer = model.parameters
     
 
     ppo_trainer = PPOTrainer(

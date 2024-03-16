@@ -69,19 +69,14 @@ if __name__=='__main__':
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(str(i) for i in range(torch.cuda.device_count()))
 
-    padding_side = PADDING_MAP[args.model_name]
+    padding_side = PADDING_MAP[args.model_name] if args.model_name in PADDING_MAP.keys() else 'left'
     tokenizer = AutoTokenizer.from_pretrained(args.model_name, padding_side=padding_side)
     tokenizer.pad_token = tokenizer.eos_token
     add_tokens = ["<", "<=", "<>"]
     tokenizer.add_tokens(add_tokens)
 
     peft_parameters = LoraConfig(
-        lora_alpha=args.lora_alpha,
-        lora_dropout=args.lora_dropout,
-        r=args.lora_r,
-        bias="none",
-        task_type="CAUSAL_LM",
-        target_modules=["q_proj", "k_proj","v_proj","o_proj"]
+        **read_data(args.adapter_config_path)
     )
 
 
