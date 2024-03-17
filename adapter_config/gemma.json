@@ -3,7 +3,7 @@
     "lora_dropout":0.1,
     "r":1,
     "bias":"none",
-    "type":"CAUSAL_LM",
+    "task_type":"CAUSAL_LM",
     "target_modules":[
         "o_proj",
         "q_proj",

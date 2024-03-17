@@ -1,15 +1,13 @@
 {
-    "lora_alpha":128,
-    "lora_dropout":0,
-    "r":64,
+    "lora_alpha":16,
+    "lora_dropout":0.1,
+    "r":1,
     "bias":"none",
-    "target_module":[
+    "task_type":"CAUSAL_LM",
+    "target_modules":[
         "o_proj",
         "v_proj",
         "k_proj",
-        "q_proj",
-        "up_proj",
-        "gate_proj",
-        "down_proj"
+        "q_proj"
     ]
 }

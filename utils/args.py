@@ -30,6 +30,7 @@ def add_default_args(parser: argparse.ArgumentParser):
     parser.add_argument("--train_batch_size", type=int, default=8)
     parser.add_argument("--valid_batch_size", type=int, default=4)
     parser.add_argument("--test_batch_size", type=int, default=4)
+    parser.add_argument("--mini_batch_size", type=int, default=1)
     parser.add_argument("--seq_length", type=int, default=256)
     parser.add_argument("--max_seq_length", type=int, default=512)
     parser.add_argument("--max_target_length", type=int, default=512)
