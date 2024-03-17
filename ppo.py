@@ -284,7 +284,7 @@ if __name__=="__main__":
         learning_rate=1e-3,
         ppo_epochs=args.train_epochs,
         batch_size=args.train_batch_size,
-        mini_batch_size=args.train_batch_size,
+        mini_batch_size=args.mini_batch_size,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         # accelerator_kwargs={"num_processes":args.n_gpu}
     )
@@ -301,9 +301,10 @@ if __name__=="__main__":
     ### NOTE: args.load_checkpoint_path contains both adapter config and tokenizer config!
     logger.info("*** Loading checkpoints ***")
     tokenizer = AutoTokenizer.from_pretrained(args.load_checkpoint_path, padding_side='left') # decoder-only arch.
-    # model = AutoModelForCausalLM.from_pretrained(args.model_name,      
-    #                                              **model_config, 
-    #                                              )   # We're not going to use additional Peft this time
+    model = AutoModelForCausalLM.from_pretrained(args.model_name,      
+                                                 **model_config, 
+                                                 )
+    # model.gradient_checkpointing_enable()# We're not using additional Peft this time
     # model = PeftModel.from_pretrained(model, args.load_checkpoint_path, is_trainable=True)
     # logger.info(f"*** Avaiable: {} ***")
     # model.merge_and_unload()
@@ -315,10 +316,8 @@ if __name__=="__main__":
     Technically yes, but I would advise to first merge the sft_model into a single base model and pass the merged model to AutoModelForCausalLMWithValueHead.
     """
 
-    model = AutoModelForCausalLMWithValueHead.from_pretrained(
-        args.load_checkpoint_path,
-        **model_config
-        )
+    model = AutoModelForCausalLMWithValueHead.from_pretrained(model)
+    model.gradient_checkpointing_enable()
     
     ref_model = None # Default value
     # optimizer = model.parameters
