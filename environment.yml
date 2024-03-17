@@ -1,0 +1,5 @@
+# conda environments:
+#
+base                     /opt/conda
+unsloth_env           *  /opt/conda/envs/unsloth_env
+
