@@ -344,7 +344,7 @@ if __name__=="__main__":
 
     sql_file_path = f"{BASE_DATA_DIR}/mimic_iv.sqlite"
     csv_dir_path = f"{BASE_DATA_DIR}"
-    save_path = f"{args.output_dir}/{wandb.run.name}"
+    # save_path = f"{args.output_dir}/{wandb.run.name}"
 
     logger.info(f"*** NUM_DEVICES: {ppo_trainer.accelerator.num_processes} ***")
     logger.info("*** START TRAINING ***")
@@ -375,7 +375,7 @@ if __name__=="__main__":
             ppo_trainer.log_stats(stats, batch, rewards, columns_to_log=["query", "response", "ref_response", "ref_rewards"])
             
 
-    os.makedirs(save_path, exist_ok=True)
+    # os.makedirs(save_path, exist_ok=True)
     # ppo_trainer.save_pretrained(save_path)
     repo_id = f"{args.project_name}-{args.model_name.split('/')[-1]}"
     ppo_trainer.model = ppo_trainer.accelerator.unwrap_model(ppo_trainer.model)
