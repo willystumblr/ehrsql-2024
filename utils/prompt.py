@@ -1,4 +1,20 @@
+# Reference:
+# https://wandb.ai/capecape/alpaca_ft/reports/How-to-Fine-tune-an-LLM-Part-3-The-HuggingFace-Trainer--Vmlldzo1OTEyNjMy
+
+def unanswerable_prompt(example):
+    prompt= ("Is the question convertible to an SQL query?"
+                "\n\n"
+                "### Question:\n{question}\n\n### Answer:{label}\n").format_map(example)
+    return prompt
+    
+def text2sql_prompt(example):
+    prompt = ("Convert the question below to SQL query."
+                "\n\n"
+                "### Question:\n{question}\n\n### Answer:{label}\n").format_map(example)
+    return prompt
+
 def create_prompt(example):
+    prompt_formatter = unanswerable_prompt if example['type']=='unanswerable' else text2sql_prompt
     """_summary_
     formatting function for SFTTrainer;
 
@@ -9,20 +25,13 @@ def create_prompt(example):
             "question: query,
             "label": answer,
         }
-    Reference:
-    https://wandb.ai/capecape/alpaca_ft/reports/How-to-Fine-tune-an-LLM-Part-3-The-HuggingFace-Trainer--Vmlldzo1OTEyNjMy
+    
     """
     # print(item)
-    prompt=None
-    if example['label']=='' or 'label' not in example.keys():
-        prompt= ("Convert the question below to SQL query."
-                "\n\n"
-                "### Question:\n{question}\n\n### SQL:\n").format_map(example)
-    else:
-        prompt= ("Convert the question below to SQL query."
-                "\n\n"
-                "### Question:\n{question}\n\n### SQL:\n{label}").format_map(example)
-    return prompt
+    if 'label' not in example.keys():
+        example['label'] = ''
+    
+    return prompt_formatter(example)
 
 
 def create_eval_prompt_batch(batch):
@@ -36,20 +45,12 @@ def create_eval_prompt_batch(batch):
             "question": [] # list of questions, len(batch)
             "label": [] # list of labels, len(batch) (optional for evaluation)
         }
-    Reference:
-    https://wandb.ai/capecape/alpaca_ft/reports/How-to-Fine-tune-an-LLM-Part-3-The-HuggingFace-Trainer--Vmlldzo1OTEyNjMy
+    
     """
-    prompts = []
+    task_type = batch['type'][0]
+    examples = [{'question':q, 'type':task_type, 'label':''} for q in batch['question']]
 
-    questions = batch['question']
-
-    for q in questions:
-        prompt= ("Convert the question below to SQL query."
-                "\n\n"
-                "### Question:\n{}\n\n### SQL:\n").format(q)
-        prompts.append(prompt)
-
-    return prompts
+    return [create_prompt(example) for example in examples]
 
 def create_sample_prompt(example):
     """_summary_
@@ -62,8 +63,7 @@ def create_sample_prompt(example):
             "question: query,
             "label": answer,
         }
-    Reference:
-    https://wandb.ai/capecape/alpaca_ft/reports/How-to-Fine-tune-an-LLM-Part-3-The-HuggingFace-Trainer--Vmlldzo1OTEyNjMy
+    
     """
     label = example['label']
     example['label'] = ''
@@ -82,8 +82,7 @@ def create_ppo_prompt(example):
             "label": answer,
             "answer": sql query answer
         }
-    Reference:
-    https://wandb.ai/capecape/alpaca_ft/reports/How-to-Fine-tune-an-LLM-Part-3-The-HuggingFace-Trainer--Vmlldzo1OTEyNjMy
+    
     """
     label = example['label']
     example['label'] = ''

@@ -7,7 +7,7 @@ def add_default_args(parser: argparse.ArgumentParser):
     parser.add_argument("--project_name", type=str, default=None)
     parser.add_argument("--db_id", type=str, default="mimiciii", help="database name")  # NOTE: `mimic_iv` will be used for codabench
     parser.add_argument("--train_data_dir", type=str, help="train data path")
-    parser.add_argument("--train_type", type=str, choices=["SFT", "PPO", "DPO"])
+    parser.add_argument("--train_type", type=str, choices=['unanswerable', 'text2sql'])
     parser.add_argument("--local-rank", type=int, default=None, help="GPU multi-processing")
     parser.add_argument("--phase", type=str, default="dev", choices=["dev", "dev_final", "test"], help="competition phase")
 
