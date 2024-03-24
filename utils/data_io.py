@@ -21,7 +21,7 @@ DB_PATH = os.path.join(BASE_DATA_DIR, f'{DB_ID}.sqlite')                # Databa
 NEW_TRAIN_DIR = os.path.join(BASE_DATA_DIR, '__train')
 NEW_VALID_DIR = os.path.join(BASE_DATA_DIR, '__valid')
 NEW_TEST_DIR = os.path.join(BASE_DATA_DIR, 'valid')
-
+TABLES = json.load(open(os.path.join(BASE_DATA_DIR, 'mimic_iv.json')))
 
 def read_json(path):
     with open(path) as f:
@@ -68,7 +68,7 @@ def build_dataset(args):
             valid_dataset = []
             for d, l in zip(new_valid_data['data'], new_valid_label.items()):
                 example = {"id": d['id'], "type":'unanswerable',"question":d['question']}
-                example['label']=True if l[1] =='null' else False
+                example['label']='True' if l[1] =='null' else 'False'
                 valid_dataset.append(example)
         else:
             raise ValueError("Unsupported train_type: should be either 'text2sql' or 'unanswerable'.")

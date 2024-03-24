@@ -1,17 +1,24 @@
 # Reference:
 # https://wandb.ai/capecape/alpaca_ft/reports/How-to-Fine-tune-an-LLM-Part-3-The-HuggingFace-Trainer--Vmlldzo1OTEyNjMy
+from .data_io import TABLES
 
 def unanswerable_prompt(example):
-    prompt= ("Is the question convertible to an SQL query?"
+    prompt_1= ("Given the tables and columns of the database, is the question convertible to an SQL query?"
                 "\n\n"
-                "### Question:\n{question}\n\n### Answer:{label}\n").format_map(example)
-    return prompt
+                "### Database: \n\n"
+                f"{str(TABLES)}"
+                "\n\n")
+    prompt_2=("### Question:\n{question}\n\n### Answer:{label}\n").format_map(example)
+    return prompt_1+prompt_2
     
 def text2sql_prompt(example):
-    prompt = ("Convert the question below to SQL query."
+    prompt_1 = ("Given the tables and columns of the database, convert the question below to SQL query if it is convertible."
                 "\n\n"
-                "### Question:\n{question}\n\n### Answer:{label}\n").format_map(example)
-    return prompt
+                "### Database: \n\n"
+                f"{str(TABLES)}"
+                "\n\n")
+    prompt_2 = ("### Question:\n{question}\n\n### Answer:{label}\n").format_map(example)
+    return prompt_1+prompt_2
 
 def create_prompt(example):
     prompt_formatter = unanswerable_prompt if example['type']=='unanswerable' else text2sql_prompt
