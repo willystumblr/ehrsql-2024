@@ -70,6 +70,8 @@ if __name__=='__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(str(i) for i in range(torch.cuda.device_count()))
 
     padding_side = PADDING_MAP[args.model_name] if args.model_name in PADDING_MAP.keys() else 'left'
+    
+    model_name = args.model_name if args.model_name else args.base_model_name
     tokenizer = AutoTokenizer.from_pretrained(args.model_name, padding_side=padding_side)
     tokenizer.pad_token = tokenizer.eos_token
     add_tokens = ["<", "<=", "<>"]
@@ -88,7 +90,8 @@ if __name__=='__main__':
     )
     save_dir = f"{args.output_dir}/{wandb.run.name}"
     
-    model = AutoModelForCausalLM.from_pretrained(args.model_name, **model_config)
+    
+    model = AutoModelForCausalLM.from_pretrained(model_name, **model_config)
     
     os.makedirs(save_dir, exist_ok=True)
     training_args = TrainingArguments(
@@ -107,7 +110,7 @@ if __name__=='__main__':
         load_best_model_at_end=args.load_best_model_at_end,
         logging_first_step=args.logging_first_step,
         push_to_hub=True,
-        push_to_hub_model_id=f"{args.project_name}-{args.model_name.split('/')[-1]}",
+        push_to_hub_model_id=f"{args.project_name}-{args.base_model_name.split('/')[-1]}",
         push_to_hub_token=HF_W_TOKEN
     )
 
