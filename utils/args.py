@@ -24,7 +24,7 @@ def add_default_args(parser: argparse.ArgumentParser):
     parser.add_argument("--base_model_name", type=str, default="google/gemma-2b-it")
     parser.add_argument("--save_checkpoint_path", type=str, default=None)
     parser.add_argument("--load_checkpoint_path", type=str, default=None)
-    parser.add_argument("--load_adapter_path", type=str, default=None)
+    parser.add_argument("--add_adapter", type=bool, default=None)
     parser.add_argument("--load_ref_checkpoint_path", type=str, default=None)
 
     # training parameters

@@ -10,7 +10,7 @@ import argparse
 import wandb
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from utils.settings import set_seed, wandb_setup, huggingface_login, LLMSampleCB, HF_W_TOKEN, PADDING_MAP
-from peft import LoraConfig # get_peft_model
+from peft import LoraConfig, PeftModel # get_peft_model
 from trl.trainer import SFTTrainer
 # from trl.trainer import get_kbit_device_map, get_quantization_config
 from transformers import TrainingArguments
@@ -85,13 +85,20 @@ if __name__=='__main__':
     model_name = args.model_name if args.model_name else args.base_model_name
     padding_side = PADDING_MAP[model_name] if model_name in PADDING_MAP.keys() else 'left'
     
-    model = AutoModelForCausalLM.from_pretrained(model_name, **model_config)
+    model = AutoModelForCausalLM.from_pretrained(args.base_model_name, **model_config)
+    # adapters = model.active_adapters()
     tokenizer = AutoTokenizer.from_pretrained(model_name, padding_side=padding_side)
     if args.model_name: # if using saved model
         tokenizer.pad_token = tokenizer.eos_token
         add_tokens = ["<", "<=", "<>"]
         tokenizer.add_tokens(add_tokens)
-    
+    if args.add_adapter:
+        model = PeftModel.from_pretrained(model, model_name, config=peft_parameters)
+        model.merge_and_unload()
+        model.add_adapter(adapter_name=args.train_type, peft_config=peft_parameters)
+        # adapters.extend(model.active_adapters())
+        # model.set_adapter(adapters)
+    print(f"*** Active adapters: {model.active_adapters} ***")    
     os.makedirs(save_dir, exist_ok=True)
     training_args = TrainingArguments(
         output_dir = save_dir,
@@ -121,7 +128,7 @@ if __name__=='__main__':
         packing=True, # pack samples together for efficient training
         max_seq_length=args.max_seq_length, # maximum packed length
         args=training_args,
-        peft_config=peft_parameters,
+        # peft_config=peft_parameters,
         formatting_func=create_prompt, # format samples with a model schema
     )
 
