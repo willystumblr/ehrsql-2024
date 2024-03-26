@@ -40,7 +40,7 @@ def build_dataset(args):
     elif args.phase == 'dev_final':
         train_path, valid_path, test_path = TRAIN_DATA_DIR, VALID_DATA_DIR, None
     else:
-        train_path, valid_path, test_path = TRAIN_DATA_DIR, VALID_DATA_DIR, TEST_DATA_DIR
+        train_path, valid_path, test_path = TRAIN_DATA_DIR, NEW_VALID_DIR, TEST_DATA_DIR
     
     
     new_train_data = read_json(os.path.join(train_path, 'data.json'))
@@ -52,18 +52,18 @@ def build_dataset(args):
         train_dataset = []
         for d, l in zip(new_train_data['data'], new_train_label.items()):
             example = {"id": d['id'], "type":'unanswerable',"question":d['question']}
-            example['label']=True if l[1] =='null' else False
+            example['label']='True' if l[1] =='null' else 'False'
             train_dataset.append(example)
     else:
         raise ValueError("Unsupported train_type: should be either 'text2sql' or 'unanswerable'.")
 
     train_data = Dataset.from_list(train_dataset)
     ### TODO: leave it for now..
-    if args.phase=='dev':
+    if args.phase=='dev' or args.phase=='test':
         new_valid_data = read_json(os.path.join(valid_path, 'data.json'))
         new_valid_label = read_json(os.path.join(valid_path, "label.json"))
         if args.train_type=='text2sql':
-            valid_dataset = [{"id": d['id'], "question":d['question'], "label":l[1]} for d, l in zip(new_valid_data['data'], new_valid_label.items())]
+            valid_dataset = [{"id": d['id'], "type":'text2sql', "question":d['question'], "label":l[1]} for d, l in zip(new_valid_data['data'], new_valid_label.items())]
         elif args.train_type=='unanswerable':
             valid_dataset = []
             for d, l in zip(new_valid_data['data'], new_valid_label.items()):
@@ -76,13 +76,16 @@ def build_dataset(args):
         valid_data = Dataset.from_list(valid_dataset)
 
         
-        new_test_data = read_json(os.path.join(NEW_TEST_DIR, "data.json"))
-        test_dataset = [{"id": d['id'], "question":d['question']} for d in new_test_data['data']]
+        new_test_data = read_json(os.path.join(test_path, "data.json"))
+        test_dataset = [{"id": d['id'], "type":'text2sql', "question":d['question']} for d in new_test_data['data']]
         test_data = Dataset.from_list(test_dataset)
-    elif args.phase=='dev_final':
+    else:
         valid_data=None
         test_data=None 
-    else:
-        pass
+    # else:
+    #     valid_data=None
+    #     new_test_data = read_json(os.path.join(test_path, "data.json"))
+    #     test_dataset = [{"id": d['id'], "question":d['question']} for d in new_test_data['data']]
+    #     test_data = Dataset.from_list(test_dataset)
     
     return train_data, valid_data, test_data

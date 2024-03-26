@@ -1,7 +1,8 @@
 python sft.py \
     --train_type=text2sql \
     --base_model_name=google/gemma-2b-it \
-    --project_name=ehrsql-2024-sft-text2sql\
+    --project_name=ehrsql-2024-sft-text2sql \
+    --model_name=willystumblr/ehrsql-2024-sft-unanswerable-gemma-2b-it \
     --train_epochs=3 \
     --train_batch_size=8 \
     --learning_rate=1e-3 \
@@ -12,6 +13,5 @@ python sft.py \
     --evaluation_strategy=no \
     --test_batch_size=1 \
     --save_strategy=epoch \
-    --max_new_token=512 \
     --adapter_config_path=adapter_config/gemma.json \
-    --phase=dev_final
+    --phase=test

@@ -87,10 +87,15 @@ if __name__=='__main__':
     
     model = AutoModelForCausalLM.from_pretrained(model_name, **model_config)
     tokenizer = AutoTokenizer.from_pretrained(model_name, padding_side=padding_side)
-    if args.model_name: # if using saved model
+    if not args.model_name: # if not using saved model
         tokenizer.pad_token = tokenizer.eos_token
         add_tokens = ["<", "<=", "<>"]
         tokenizer.add_tokens(add_tokens)
+    if args.add_adapter:
+        # model = PeftModel.from_pretrained(model, model_name, config=peft_parameters)
+        # model = model.merge_and_unload()
+        model.add_adapter(adapter_name=args.train_type, peft_config=peft_parameters)
+        model.set_adapter(args.train_type)
     
     os.makedirs(save_dir, exist_ok=True)
     training_args = TrainingArguments(
@@ -108,9 +113,6 @@ if __name__=='__main__':
         save_steps=args.save_steps,
         load_best_model_at_end=args.load_best_model_at_end,
         logging_first_step=args.logging_first_step,
-        push_to_hub=True,
-        push_to_hub_model_id=f"{args.project_name}-{args.base_model_name.split('/')[-1]}",
-        push_to_hub_token=HF_W_TOKEN
     )
 
     trainer = SFTTrainer(
@@ -133,7 +135,11 @@ if __name__=='__main__':
     trainer.train()
     torch.cuda.empty_cache()
     trainer.model = trainer.accelerator.unwrap_model(trainer.model)
-    # trainer.model.merge_and_unload()
-    trainer.push_to_hub()
+    if not args.safe_serialization:
+        model = trainer.model.merge_and_unload()
+    repo_id = f"{args.project_name}-{args.base_model_name.split('/')[-1]}"
+    model.push_to_hub(repo_id, safe_serialization=args.safe_serialization, token=HF_W_TOKEN)
+    trainer.tokenizer.push_to_hub(repo_id)
+    # trainer.push_to_hub()
     #trainer.push_to_hub()
 

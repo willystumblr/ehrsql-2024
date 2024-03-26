@@ -7,7 +7,7 @@ def add_default_args(parser: argparse.ArgumentParser):
     parser.add_argument("--project_name", type=str, default=None)
     parser.add_argument("--db_id", type=str, default="mimiciii", help="database name")  # NOTE: `mimic_iv` will be used for codabench
     parser.add_argument("--train_data_dir", type=str, help="train data path")
-    parser.add_argument("--train_type", type=str, choices=['unanswerable', 'text2sql'])
+    parser.add_argument("--train_type", type=str, default='text2sql', help=['unanswerable', 'text2sql'])
     parser.add_argument("--local-rank", type=int, default=None, help="GPU multi-processing")
     parser.add_argument("--phase", type=str, default="dev", choices=["dev", "dev_final", "test"], help="competition phase")
 
@@ -24,7 +24,8 @@ def add_default_args(parser: argparse.ArgumentParser):
     parser.add_argument("--base_model_name", type=str, default="google/gemma-2b-it")
     parser.add_argument("--save_checkpoint_path", type=str, default=None)
     parser.add_argument("--load_checkpoint_path", type=str, default=None)
-    parser.add_argument("--add_adapter", type=bool, default=None)
+    parser.add_argument("--add_adapter", type=bool, default=False)
+    parser.add_argument("--adapter_path", type=str, default=None)
     parser.add_argument("--load_ref_checkpoint_path", type=str, default=None)
 
     # training parameters
@@ -55,7 +56,7 @@ def add_default_args(parser: argparse.ArgumentParser):
 
     # lora parameters
     parser.add_argument("--adapter_config_path", type=str, default=None)
-
+    parser.add_argument("--safe_serialization", type=bool, default=True)
     parser.add_argument("--save_every_epoch", type=bool, default=False)
     parser.add_argument("--bf16", type=bool, default=False)
     parser.add_argument("--seed", type=int, default=0)
