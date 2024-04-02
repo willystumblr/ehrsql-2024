@@ -56,7 +56,8 @@ def add_default_args(parser: argparse.ArgumentParser):
 
     # lora parameters
     parser.add_argument("--adapter_config_path", type=str, default=None)
-    parser.add_argument("--safe_serialization", type=bool, default=True)
+    parser.add_argument("--safe_serialization", type=int, default=1)
+    parser.add_argument("--use_safetensors", type=int, default=1)
     parser.add_argument("--save_every_epoch", type=bool, default=False)
     parser.add_argument("--bf16", type=bool, default=False)
     parser.add_argument("--seed", type=int, default=0)
