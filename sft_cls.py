@@ -8,12 +8,10 @@ import torch
 import random
 import argparse
 import wandb
-from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModelForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModelForSequenceClassification, get_linear_schedule_with_warmup
 from utils.settings import PADDING_MAP, set_seed, wandb_setup, huggingface_login, LLMSampleCB, HF_W_TOKEN
-from peft import LoraConfig # get_peft_model
-from trl.trainer import SFTTrainer
+from peft import LoraConfig, PeftModel # get_peft_model
 # from trl.trainer import get_kbit_device_map, get_quantization_config
-from transformers import TrainingArguments
 from utils.data_io import (
     BASE_DATA_DIR,
     BASE_CKPT_DIR,
@@ -24,8 +22,12 @@ from utils.data_io import read_json as read_data
 from utils.data_io import write_json as write_data
 from utils.data_io import build_dataset
 from accelerate import Accelerator
-from unsloth import FastLanguageModel
+import evaluate
+from torch.utils.data import DataLoader
+from torch.optim import AdamW
+from tqdm import tqdm
 
+from torch.nn import CrossEntropyLoss
 """
 python sft.py \
     --train_type=unanswerable \
@@ -45,6 +47,7 @@ python sft.py \
     --adapter_config_path=adapter_config/gemma.json \
     --phase=test
 """
+
 if __name__=='__main__':    
     parser = argparse.ArgumentParser()
     parser = add_default_args(parser)
@@ -57,7 +60,9 @@ if __name__=='__main__':
     # Set random seed for reproducibility
     set_seed(args)
 
-    train_data, valid_data, test_data = build_dataset(args.phase)
+    train_data, valid_data, test_data = build_dataset(args)
+    
+
 
     ### WandB setting
     wandb_setup(args)
@@ -71,79 +76,94 @@ if __name__=='__main__':
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(str(i) for i in range(torch.cuda.device_count()))
 
-    peft_parameters = LoraConfig(
-        lora_alpha=args.lora_alpha,
-        lora_dropout=args.lora_dropout,
-        r=args.lora_r,
-        bias="none",
-        task_type="CAUSAL_LM",
-        target_modules=["q_proj", "k_proj","v_proj","o_proj"]
-    )
-
     if not torch.backends.cudnn.benchmark:
         torch.backends.cudnn.benchmark = True
 
     save_dir = f"{args.output_dir}/{wandb.run.name}"
-    repo_id = f"{args.project_name}-{args.model_name.split('/')[-1]}"
-    
-    
-    os.makedirs(save_dir, exist_ok=True)
-    training_args = TrainingArguments(
-        output_dir = save_dir,
-        report_to="wandb", # enables logging to W&B 😎
-        per_device_train_batch_size=args.train_batch_size,
-        learning_rate=args.learning_rate,
-        logging_steps=args.logging_steps,
-        lr_scheduler_type=args.lr_scheduler_type,
-        num_train_epochs=args.train_epochs,
-        gradient_accumulation_steps=args.gradient_accumulation_steps, # simulate larger batch sizes
-        bf16=args.bf16,
-        evaluation_strategy=args.evaluation_strategy,
-        save_strategy=args.save_strategy, # if load_best_model_at_end=True
-        save_steps=args.save_steps,
-        load_best_model_at_end=args.load_best_model_at_end,
-        logging_first_step=args.logging_first_step,
-        push_to_hub=True,
-        hub_model_id=f"{args.project_name}-{args.model_name.split('/')[-1]}",
-        push_to_hub_token=HF_W_TOKEN
-    )
+    repo_id = f"{args.project_name}-{args.base_model_name.split('/')[-1]}"
     
     peft_parameters = LoraConfig(
         **read_data(args.adapter_config_path)
     )
-
+    
+    
     model_config = dict(
-        device_map={"": Accelerator().process_index},
-        trust_remote_code=True,
-        torch_dtype=torch.bfloat16 if args.bf16 else "auto",
-        use_cache=False,
-    )
+                id2label={0: "unanswerable", 1: "answerable"},
+                num_labels=2,
+                label2id={"unanswerable":0, "answerable":1}
+            )
     save_dir = f"{args.output_dir}/{wandb.run.name}"
     
     model_name = args.model_name if args.model_name else args.base_model_name
     padding_side = PADDING_MAP[model_name] if model_name in PADDING_MAP.keys() else 'left'
     
     model = AutoModelForSequenceClassification.from_pretrained(model_name, **model_config)
+    model.add_adapter(peft_parameters)
     tokenizer = AutoTokenizer.from_pretrained(model_name, padding_side=padding_side)
     
-
-    trainer = SFTTrainer(
-        model=model,
-        tokenizer=tokenizer,
-        train_dataset=train_data,
-        eval_dataset=valid_data if args.phase == 'dev' else None,
-        packing=True, # pack samples together for efficient training
-        args=training_args,
-        peft_config=peft_parameters,
-        dataset_text_field='text'
-        # formatting_func=create_prompt, # format samples with a model schema
+    def preprocess_function(examples):
+        return tokenizer(examples["text"], padding=True, truncation=True, max_length=args.max_seq_length)
+    
+    
+    def collate_fn(examples):
+        return tokenizer.pad(examples, padding="longest", return_tensors="pt")
+    
+    # Instantiate dataloaders.
+    
+    train_dataset = train_data.map(preprocess_function, batched=True, remove_columns=['id', 'type', 'question', 'text'])
+    valid_dataset = valid_data.map(preprocess_function, batched=True, remove_columns=['id', 'type', 'question', 'text'])
+    
+    train_dataloader = DataLoader(train_dataset, shuffle=True, collate_fn=collate_fn, batch_size=args.train_batch_size)
+    eval_dataloader = DataLoader(
+        valid_dataset, shuffle=False, collate_fn=collate_fn, batch_size=args.valid_batch_size
     )
 
-    # sample_dataset = valid_data.map(create_sample_prompt) if args.phase == 'dev' else train_data.map(create_sample_prompt)
-    # wandb_callback = LLMSampleCB(trainer, sample_dataset, num_samples=10, max_new_tokens=args.max_new_tokens)
-    # trainer.add_callback(wandb_callback)
+    optimizer = AdamW(params=model.parameters(), lr=args.learning_rate)
+    loss_fn = CrossEntropyLoss()
+    # Instantiate scheduler
+    lr_scheduler = get_linear_schedule_with_warmup(
+        optimizer=optimizer,
+        num_warmup_steps=0.06 * (len(train_dataloader) * args.train_epochs),
+        num_training_steps=(len(train_dataloader) * args.train_epochs),
+    )
+    metric = evaluate.load("accuracy")
     
-    trainer.train()
-    torch.cuda.empty_cache()
-    trainer.model = trainer.accelerator.unwrap_model(trainer.model)
-    trainer.push_to_hub()
+    model.to(args.device)
+    for epoch in range(args.train_epochs):
+        model.train()
+        for step, batch in enumerate(tqdm(train_dataloader)):
+            batch.to(args.device)
+            input_ids, attention_mask, labels = batch['input_ids'], batch['attention_mask'], batch['label']
+            
+            outputs = model(input_ids=input_ids, attention_mask=attention_mask)
+            loss = outputs.loss
+            if not loss:
+                loss = loss_fn(outputs.logits, labels)
+            
+            loss.backward()
+            optimizer.step()
+            lr_scheduler.step()
+            optimizer.zero_grad()
+
+        model.eval()
+        for step, batch in enumerate(tqdm(eval_dataloader)):
+            batch.to(args.device)
+            input_ids, attention_mask, labels = batch['input_ids'], batch['attention_mask'], batch['label']
+            with torch.no_grad():
+                outputs = model(input_ids=input_ids, attention_mask=attention_mask)
+            predictions = outputs.logits.argmax(dim=-1)
+            # predictions, references = predictions, labels
+            
+            
+            metric.add_batch(
+                predictions=predictions,
+                references=labels,
+            )
+
+        eval_metric = metric.compute()
+        print(f"epoch {epoch}:", eval_metric)
+
+    
+    model.push_to_hub(repo_id, safe_serialization=args.safe_serialization, token=HF_W_TOKEN)
+    tokenizer.push_to_hub(repo_id)
+    

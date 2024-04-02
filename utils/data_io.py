@@ -37,7 +37,7 @@ def _unanswerable_query_formatter(example):
     prompt_1= ("Database: "
                 f"{str(TABLES)}")
     prompt_2=("{question} [SEP] ").format_map(example)
-    return prompt_1+prompt_2
+    return prompt_2+prompt_1
 
 def build_dataset(args):
     # prepare data
@@ -58,7 +58,7 @@ def build_dataset(args):
         train_dataset = []
         for d, l in zip(new_train_data['data'], new_train_label.items()):
             example = {"id": d['id'], "type":'unanswerable',"question":d['question']}
-            example['label']=1 if l[1] =='null' else 0
+            example['label']=0 if l[1] =='null' else 1
             example['text'] = _unanswerable_query_formatter(example)
             train_dataset.append(example)
     else:
@@ -75,7 +75,7 @@ def build_dataset(args):
             valid_dataset = []
             for d, l in zip(new_valid_data['data'], new_valid_label.items()):
                 example = {"id": d['id'], "type":'unanswerable',"question":d['question']}
-                example['label']=1 if l[1] =='null' else 0
+                example['label']=0 if l[1] =='null' else 1
                 example['text'] = _unanswerable_query_formatter(example)
                 valid_dataset.append(example)
         else:
