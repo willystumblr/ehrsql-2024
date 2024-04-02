@@ -33,6 +33,12 @@ def write_json(path, file, mode='w+'):
     with open(path, mode) as f:
         json.dump(file, f)
 
+def _unanswerable_query_formatter(example):
+    prompt_1= ("Database: "
+                f"{str(TABLES)}")
+    prompt_2=("{question} [SEP] ").format_map(example)
+    return prompt_1+prompt_2
+
 def build_dataset(args):
     # prepare data
     if args.phase == 'dev':
@@ -52,7 +58,8 @@ def build_dataset(args):
         train_dataset = []
         for d, l in zip(new_train_data['data'], new_train_label.items()):
             example = {"id": d['id'], "type":'unanswerable',"question":d['question']}
-            example['label']='True' if l[1] =='null' else 'False'
+            example['label']=1 if l[1] =='null' else 0
+            example['text'] = _unanswerable_query_formatter(example)
             train_dataset.append(example)
     else:
         raise ValueError("Unsupported train_type: should be either 'text2sql' or 'unanswerable'.")
@@ -68,7 +75,8 @@ def build_dataset(args):
             valid_dataset = []
             for d, l in zip(new_valid_data['data'], new_valid_label.items()):
                 example = {"id": d['id'], "type":'unanswerable',"question":d['question']}
-                example['label']='True' if l[1] =='null' else 'False'
+                example['label']=1 if l[1] =='null' else 0
+                example['text'] = _unanswerable_query_formatter(example)
                 valid_dataset.append(example)
         else:
             raise ValueError("Unsupported train_type: should be either 'text2sql' or 'unanswerable'.")
@@ -82,10 +90,6 @@ def build_dataset(args):
     else:
         valid_data=None
         test_data=None 
-    # else:
-    #     valid_data=None
-    #     new_test_data = read_json(os.path.join(test_path, "data.json"))
-    #     test_dataset = [{"id": d['id'], "question":d['question']} for d in new_test_data['data']]
-    #     test_data = Dataset.from_list(test_dataset)
+    
     
     return train_data, valid_data, test_data
