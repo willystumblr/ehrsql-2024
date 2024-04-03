@@ -133,12 +133,12 @@ if __name__=='__main__':
         model.train()
         for step, batch in enumerate(tqdm(train_dataloader)):
             batch.to(args.device)
-            input_ids, attention_mask, labels = batch['input_ids'], batch['attention_mask'], batch['label']
+            #input_ids, attention_mask, labels = batch['input_ids'], batch['attention_mask'], batch['labels']
             
-            outputs = model(input_ids=input_ids, attention_mask=attention_mask)
+            outputs = model(**batch)
             loss = outputs.loss
             if not loss:
-                loss = loss_fn(outputs.logits, labels)
+                loss = loss_fn(outputs.logits, batch["labels"])
             
             loss.backward()
             optimizer.step()
@@ -148,16 +148,16 @@ if __name__=='__main__':
         model.eval()
         for step, batch in enumerate(tqdm(eval_dataloader)):
             batch.to(args.device)
-            input_ids, attention_mask, labels = batch['input_ids'], batch['attention_mask'], batch['label']
+            #input_ids, attention_mask, labels = batch['input_ids'], batch['attention_mask'], batch['labels']
             with torch.no_grad():
-                outputs = model(input_ids=input_ids, attention_mask=attention_mask)
+                outputs = model(**batch)
             predictions = outputs.logits.argmax(dim=-1)
             # predictions, references = predictions, labels
             
             
             metric.add_batch(
                 predictions=predictions,
-                references=labels,
+                references=batch["labels"],
             )
 
         eval_metric = metric.compute()

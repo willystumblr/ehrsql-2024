@@ -58,7 +58,7 @@ def build_dataset(args):
         train_dataset = []
         for d, l in zip(new_train_data['data'], new_train_label.items()):
             example = {"id": d['id'], "type":'unanswerable',"question":d['question']}
-            example['label']=0 if l[1] =='null' else 1
+            example['labels']=0 if l[1] =='null' else 1
             example['text'] = _unanswerable_query_formatter(example)
             train_dataset.append(example)
     else:
@@ -75,7 +75,7 @@ def build_dataset(args):
             valid_dataset = []
             for d, l in zip(new_valid_data['data'], new_valid_label.items()):
                 example = {"id": d['id'], "type":'unanswerable',"question":d['question']}
-                example['label']=0 if l[1] =='null' else 1
+                example['labels']=0 if l[1] =='null' else 1
                 example['text'] = _unanswerable_query_formatter(example)
                 valid_dataset.append(example)
         else:
