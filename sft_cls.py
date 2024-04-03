@@ -90,7 +90,8 @@ if __name__=='__main__':
     model_config = dict(
                 id2label={0: "unanswerable", 1: "answerable"},
                 num_labels=2,
-                label2id={"unanswerable":0, "answerable":1}
+                label2id={"unanswerable":0, "answerable":1},
+                problem_type="multi_label_classification"
             )
     save_dir = f"{args.output_dir}/{wandb.run.name}"
     
