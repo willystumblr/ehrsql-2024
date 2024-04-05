@@ -44,19 +44,25 @@ class Model():
         output_scores=True,
         return_dict_in_generate=True,
     ):
-        cls_outputs = self.model_cls(input_ids)
+        cls_input_ids, gen_input_ids = input_ids
+        cls_outputs = self.model_cls(cls_input_ids)
         
-        is_answerable = cls_outputs.logits.argmax(-1).item() # batch_size MUST BE 1
-        if is_answerable:
-            with torch.inference_mode():
-                generated_outputs = self.model_gen.generate(
-                    input_ids=input_ids,
-                    output_scores=output_scores,
-                    return_dict_in_generate=return_dict_in_generate,
-                    **gen_config
-                )
-                generated_outputs["type"] = 'text2sql'
-                return generated_outputs
-        else:
-            cls_outputs['type'] = 'answerbility'
-            return cls_outputs
+        labels = cls_outputs.logits.argmax(-1).tolist() # batch_size MUST BE 1
+        
+        outputs = []
+        for is_answerable in labels:
+            if is_answerable:
+                with torch.inference_mode():
+                    generated_outputs = self.model_gen.generate(
+                        input_ids=gen_input_ids,
+                        output_scores=output_scores,
+                        return_dict_in_generate=return_dict_in_generate,
+                        **gen_config
+                    )
+                    generated_outputs["type"] = 'text2sql'
+                    outputs.append(generated_outputs)
+            else:
+                cls_outputs['type'] = 'answerbility'
+                outputs.append(cls_outputs)
+            
+        return outputs

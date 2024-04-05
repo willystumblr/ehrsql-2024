@@ -40,6 +40,21 @@ def create_prompt(example):
     
     return prompt_formatter(example)
 
+def create_pipeline_prompt(batch):
+    """_summary_
+    create prompts during evaluation step (pipeline), designed for batch processing.
+
+    Args:
+    - batch:
+        {
+            "id": [] # list of ids, len(batch)
+            "task": [] # list of questions, len(batch)
+            "question": [] # list of labels, len(batch) (optional for evaluation)
+        }
+    
+    """
+    examples = [{'question':q, 'label':''} for q in batch['question']]
+    return [unanswerable_prompt(example) for example in examples], [text2sql_prompt(example) for example in examples]
 
 def create_eval_prompt_batch(batch):
     """_summary_
