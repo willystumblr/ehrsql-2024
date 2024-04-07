@@ -1,0 +1,16 @@
+python sft_cls.py \
+    --train_type=unanswerable \
+    --base_model_name=FacebookAI/roberta-large \
+    --project_name=ehrsql-2024-sft-unanswerable \
+    --train_epochs=3 \
+    --train_batch_size=16 \
+    --learning_rate=3e-4 \
+    --logging_steps=10 \
+    --lr_scheduler_type=cosine \
+    --bf16=1 \
+    --db_id=mimic_iv \
+    --evaluation_strategy=epoch \
+    --test_batch_size=1 \
+    --save_strategy=epoch \
+    --adapter_config_path=adapter_config/roberta.json \
+    --phase=dev
