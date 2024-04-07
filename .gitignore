@@ -5,3 +5,6 @@ utils/settings.py
 wandb/
 ehrsql_2024_willystumblr.egg-info/
 __pycache__
+ckpt/
+result_submission/
+ehrsql_2024.egg-info/
