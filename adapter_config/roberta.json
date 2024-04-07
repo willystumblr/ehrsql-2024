@@ -1,0 +1,7 @@
+{
+    "lora_alpha":16,
+    "lora_dropout":0.1,
+    "r":1,
+    "bias":"none",
+    "task_type":"SEQ_CLS"
+}
