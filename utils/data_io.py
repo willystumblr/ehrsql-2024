@@ -82,10 +82,37 @@ def build_dataset(args):
             raise ValueError("Unsupported train_type: should be either 'text2sql' or 'unanswerable'.")
         
         valid_data = Dataset.from_list(valid_dataset)
+        
+        """valid data
+        {
+            "id":
+            "type":
+            "question":
+            "label":
+        }
+        or
+        {
+            "id":
+            "type":
+            "question":
+            "text":
+            "labels"
+        }
+        
+        """
 
         
         new_test_data = read_json(os.path.join(test_path, "data.json"))
         test_dataset = [{"id": d['id'], "type":'text2sql', "question":d['question']} for d in new_test_data['data']]
+        
+        """
+        {
+            "id":
+            "type":
+            "question":
+        }
+        """
+        
         test_data = Dataset.from_list(test_dataset)
     else:
         valid_data=None

@@ -65,7 +65,7 @@ if __name__=='__main__':
 
 
     ### WandB setting
-    wandb_setup(args)
+    run = wandb_setup(args)
     huggingface_login()
 
     os.environ["WANDB_PROJECT"] =  args.project_name # name your W&B project
@@ -91,7 +91,7 @@ if __name__=='__main__':
                 id2label={0: "unanswerable", 1: "answerable"},
                 num_labels=2,
                 label2id={"unanswerable":0, "answerable":1},
-                problem_type="multi_label_classification"
+                # problem_type="multi_label_classification"
             )
     save_dir = f"{args.output_dir}/{wandb.run.name}"
     
@@ -130,13 +130,14 @@ if __name__=='__main__':
     metric = evaluate.load("accuracy")
     
     model.to(args.device)
+    total_step=0
     for epoch in range(args.train_epochs):
         model.train()
         for step, batch in enumerate(tqdm(train_dataloader)):
             batch.to(args.device)
-            #input_ids, attention_mask, labels = batch['input_ids'], batch['attention_mask'], batch['labels']
+            input_ids, attention_mask, labels = batch['input_ids'], batch['attention_mask'], batch['labels'].unsqueeze(1)
             
-            outputs = model(**batch)
+            outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
             loss = outputs.loss
             if not loss:
                 loss = loss_fn(outputs.logits, batch["labels"])
@@ -145,13 +146,20 @@ if __name__=='__main__':
             optimizer.step()
             lr_scheduler.step()
             optimizer.zero_grad()
-
+            
+            run.log(step=total_step, data={
+                "step":total_step,
+                "loss":loss,
+                "learning rate":lr_scheduler.get_last_lr()[0],
+            })
+            total_step+=step
+        
         model.eval()
         for step, batch in enumerate(tqdm(eval_dataloader)):
             batch.to(args.device)
-            #input_ids, attention_mask, labels = batch['input_ids'], batch['attention_mask'], batch['labels']
+            input_ids, attention_mask, labels = batch['input_ids'], batch['attention_mask'], batch['labels'].unsqueeze(1)
             with torch.no_grad():
-                outputs = model(**batch)
+                outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
             predictions = outputs.logits.argmax(dim=-1)
             # predictions, references = predictions, labels
             
@@ -162,6 +170,10 @@ if __name__=='__main__':
             )
 
         eval_metric = metric.compute()
+        run.log(data={
+                "eval/epoch":epoch,
+                "eval/accuracy":eval_metric,
+            })
         print(f"epoch {epoch}:", eval_metric)
 
     

@@ -21,6 +21,7 @@ def add_default_args(parser: argparse.ArgumentParser):
 
     # basic parameters
     parser.add_argument("--model_name", type=str, default=None)
+    parser.add_argument("--model_name_2", type=str, default=None)
     parser.add_argument("--base_model_name", type=str, default="google/gemma-2b-it")
     parser.add_argument("--save_checkpoint_path", type=str, default=None)
     parser.add_argument("--load_checkpoint_path", type=str, default=None)

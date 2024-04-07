@@ -33,7 +33,7 @@ from unsloth import FastLanguageModel
 from model.pipleline import Model
 
 
-def generate_sql(model, tokenizer, test_dataset, args, gen_config=None):
+def generate_sql(model, tokenizer, tokenizer_cls, test_dataset, args, gen_config=None):
     """
     Generate SQL queries from a test dataset using a causal language model in batches.
 
@@ -69,52 +69,47 @@ def generate_sql(model, tokenizer, test_dataset, args, gen_config=None):
 
     # Iterate over batches
     for batch in tqdm(dataloader):
+        
         # Format each item in the batch to create prompts
         cls_prompts, gen_prompts = create_pipeline_prompt(batch)
+        # print(cls_prompts)
         # Tokenize prompts for model input
         if args.test_batch_size<=1:
-            cls_inputs = tokenizer(cls_prompts, return_tensors="pt")['input_ids']
+            cls_inputs = tokenizer_cls(cls_prompts, return_tensors="pt", padding="max_length", truncation=True, max_length=args.max_seq_length)
             gen_inputs = tokenizer(gen_prompts, return_tensors="pt")['input_ids']
             
         else:
-            cls_inputs = tokenizer(cls_prompts, return_tensors="pt", padding=True, truncation=True, max_length=args.max_seq_length)['input_ids']
+            cls_inputs = tokenizer_cls(cls_prompts, return_tensors="pt", padding=True, truncation=True, max_length=args.max_seq_length)
             gen_inputs = tokenizer(cls_prompts, return_tensors="pt", padding=True, truncation=True, max_length=args.max_seq_length)['input_ids']
         
         if args.device == 'cuda':
-            inputs = cls_inputs.cuda(), gen_inputs.cuda()
+            gen_inputs = gen_inputs.cuda()
 
         # Generate predictions with inference mode for efficiency
         with torch.inference_mode():
             generated_outputs = model.generate(
-                input_ids=inputs,
+                cls_input_ids=cls_inputs,
+                gen_input_ids=gen_inputs,
                 output_scores=True,
                 return_dict_in_generate=True,
-                **gen_config
+                gen_config=gen_config
             )
-
-        assert len(generated_outputs) == len(batch)
+        
+        
+        assert len(generated_outputs) == len(batch['id']), AssertionError(f"len(generated_outputs): {len(generated_outputs)}, len(batch): {len(batch)}")
         
         for output in generated_outputs:
-            if output['type'] == 'text2sql':
+            # print(output['type'])
+            if output['type'] == "text2sql":
                 # Move the generated sequences to the CPU if using CUDA.
                 preds = output["sequences"].cpu() if args.device == "cuda" else output["sequences"]
 
                 # Process logits and calculate probabilities and entropies.
-                logits = torch.stack(generated_outputs["scores"], dim=1)[:: int(args.num_beams / args.num_samples)]
+                logits = torch.stack(output["scores"], dim=1)[:: int(args.num_beams / args.num_samples)]
                 logits = logits.cpu() if args.device == "cuda" else logits
                 probs = torch.softmax(logits, dim=2).float()
                 log_probs = torch.log_softmax(logits, dim=2).float()
                 entropies = (torch.sum(probs * log_probs, axis=2) * (-1)).numpy()
-
-
-            # Determine if the current batch is for testing or training.
-            is_test = True
-            if "label" in batch or "labels" in batch:
-                is_test = False
-                try:
-                    reals = output["label"]
-                except Exception as e:
-                    reals = output["labels"]
 
 
             # Initialize lists to store predictions, probabilities, and entropies.
@@ -134,28 +129,39 @@ def generate_sql(model, tokenizer, test_dataset, args, gen_config=None):
 
                     entropy_list.append(entropy_truncated)
 
-                pred = tokenizer.decode(preds[:, inputs.shape[1]:], skip_special_tokens=True)
-            else:
+                pred = tokenizer.batch_decode(preds[:, gen_inputs.shape[1]:], skip_special_tokens=True)
+            elif output['type'] == 'answerability':
+                # print(output)
                 # pred_list = []
                 # entropy_list = []
-                logits = generated_outputs.logits.cpu() if args.device == "cuda" else generated_outputs.logits
+                logits = output.logits.cpu() if args.device == "cuda" else output.logits
                 preds = logits.argmax(-1).tolist()
                 # assert generated_outputs.logits.argmax(-1).items() == 0, AssertionError("Something went wrong! Classifier and Generator didn't work properly.")
                 assert preds[0]==0, AssertionError("Something went wrong! Classifier and Generator didn't work properly.")
-                pred = 'null'
-                entropy_list = [0]
-            # Construct the output results for each prediction.
+                pred = ['null']
+                entropy_list = [[0]]
+            else:
+                raise NotImplementedError("Error occurred!")
+            # Construct the output results for each prediction; assuming test batch size is always 1
             result = {
-                "id": output['id'],
-                "question": output['question'],
-                "pred": pred,
-                "entropy": entropy_list,
+                "id": batch['id'][0],
+                "question": batch['question'][0],
+                "pred": pred[0],
+                "entropy": entropy_list[0],
             }
 
-            # Include the real target output if it's training data.
+            # print(output.keys)
+            # Determine if the current batch is for testing or training.
+            is_test = True
+            if "label" in batch or "labels" in batch:
+                is_test = False
+                try:
+                    reals = batch["label"]
+                except Exception as e:
+                    reals = batch["labels"]
+                    
             if not is_test:
-                result["real"] = reals
-
+                result["real"] = reals[0]
             results.append(result)
 
     return results
@@ -200,32 +206,20 @@ if __name__=="__main__":
     args.n_gpu = torch.cuda.device_count()
     # Set random seed for reproducibility
     set_seed(args)
-    train_data, valid_data, test_data = build_dataset(args.phase)
+    train_data, valid_data, test_data = build_dataset(args)
     # CKPT_PATH = "" # path/to/checkpoint
 
 
     # """ TODO: Fix this part... """
     huggingface_login()
 
-    # model_config = dict(
-    #     device_map={"":Accelerator().local_process_index},
-    #     trust_remote_code=True,
-    #     torch_dtype=torch.bfloat16 if args.bf16 else "auto",
-    #     use_cache=False,
-    # )
-    model = Model(args.model_name, args.model_name_2)
+    
+    model = Model(args.model_name, args.model_name_2, args=args)
     # model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
-    # model, tokenizer = FastLanguageModel.from_pretrained(
-    #                                 args.model_name, 
-    #                                 max_seq_length=args.max_seq_length, 
-    #                                 dtype=torch.bfloat16 if args.bf16 else "auto",
-    #                                 device_map={"": Accelerator().process_index},
-    #                                 trust_remote_code=True
-    #                             )
-
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name_2)
+    tokenizer_cls = AutoTokenizer.from_pretrained(args.model_name)
     # Perform inference on the validation set
-    valid_eval = generate_sql(model, tokenizer, valid_data, args)
+    valid_eval = generate_sql(model, tokenizer, tokenizer_cls, valid_data, args)
 
     # Post-process SQL queries for evaluation
     label = {sample['id']: post_process_sql(sample['real']) for sample in valid_eval}
@@ -268,7 +262,7 @@ if __name__=="__main__":
     # Output the refined RS scores with abstention
     logger.info(f"*** RS with filtered unanswerable queries: Accuracy0: {accuracy0_filtered}, Accuracy5: {accuracy5_filtered}, Accuracy10: {accuracy10_filtered}, AccuracyN: {accuracyN_filtered} ***")
     ##### Submission #####
-    test_eval = generate_sql(model, tokenizer, test_data, args)
+    test_eval = generate_sql(model, tokenizer, tokenizer_cls, test_data, args)
 
     label_y = {sample['id']: 'null' if threshold < max(sample['entropy']) else post_process_sql(sample['pred']) for sample in test_eval}
     from utils.data_io import write_json as write_label

@@ -19,13 +19,15 @@ HF_W_TOKEN = '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'
 PADDING_MAP = {
     'google/gemma-2b-it':'right',
     'meta-llama/Llama-2-7b-hf':'left',
-    'codellama/CodeLlama-7b-Instruct-hf':'right'
+    'codellama/CodeLlama-7b-Instruct-hf':'right',
+    'mistralai/Mistral-7B-Instruct-v0.2':'left'
 }
 
 def wandb_setup(args: argparse.Namespace, key = API):
     wandb.login(key=API)
     # os.makedirs(wandb_path)
-    wandb.init(project=args.project_name, dir=args.wandb_dir)
+    run = wandb.init(project=args.project_name, dir=args.wandb_dir)
+    return run
     
 def huggingface_login(key=HF_W_TOKEN):
     login(token=HF_W_TOKEN)

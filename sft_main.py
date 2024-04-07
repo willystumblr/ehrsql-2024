@@ -113,6 +113,9 @@ if __name__=='__main__':
         save_steps=args.save_steps,
         load_best_model_at_end=args.load_best_model_at_end,
         logging_first_step=args.logging_first_step,
+        push_to_hub=True,
+        hub_model_id=f"{args.project_name}-{args.base_model_name.split('/')[-1]}",
+        hub_token=HF_W_TOKEN
     )
 
     trainer = SFTTrainer(
@@ -124,7 +127,7 @@ if __name__=='__main__':
         max_seq_length=args.max_seq_length, # maximum packed length
         args=training_args,
         peft_config=peft_parameters,
-        formatting_func=create_prompt, # format samples with a model schema
+        formatting_func=create_prompt, # format samples with a model schema        
     )
 
     
@@ -137,9 +140,10 @@ if __name__=='__main__':
     trainer.model = trainer.accelerator.unwrap_model(trainer.model)
     if not args.safe_serialization:
         model = trainer.model.merge_and_unload()
-    repo_id = f"{args.project_name}-{args.base_model_name.split('/')[-1]}"
-    model.push_to_hub(repo_id, safe_serialization=args.safe_serialization, token=HF_W_TOKEN)
-    trainer.tokenizer.push_to_hub(repo_id)
-    # trainer.push_to_hub()
-    #trainer.push_to_hub()
+        print("model merged!")
+    # repo_id = 
+    # model.push_to_hub(repo_id, safe_serialization=args.safe_serialization, token=)
+    # trainer.tokenizer.push_to_hub(repo_id)
+    trainer.push_to_hub()
+    
 

@@ -1,6 +1,6 @@
 # Reference:
 # https://wandb.ai/capecape/alpaca_ft/reports/How-to-Fine-tune-an-LLM-Part-3-The-HuggingFace-Trainer--Vmlldzo1OTEyNjMy
-from .data_io import TABLES
+from .data_io import TABLES, _unanswerable_query_formatter
 
 def unanswerable_prompt(example):
     prompt_1= ("Given the tables and columns of the database, is the question convertible to an SQL query?"
@@ -48,13 +48,13 @@ def create_pipeline_prompt(batch):
     - batch:
         {
             "id": [] # list of ids, len(batch)
-            "task": [] # list of questions, len(batch)
+            "type": [] # list of questions, len(batch)
             "question": [] # list of labels, len(batch) (optional for evaluation)
         }
     
     """
     examples = [{'question':q, 'label':''} for q in batch['question']]
-    return [unanswerable_prompt(example) for example in examples], [text2sql_prompt(example) for example in examples]
+    return [_unanswerable_query_formatter(example) for example in examples], [text2sql_prompt(example) for example in examples]
 
 def create_eval_prompt_batch(batch):
     """_summary_
