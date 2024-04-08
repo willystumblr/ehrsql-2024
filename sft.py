@@ -69,6 +69,7 @@ if __name__=='__main__':
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(str(i) for i in range(torch.cuda.device_count()))
 
+    print(f"*** Safetensors available: {bool(args.safe_serialization)} ***")
     
     peft_parameters = LoraConfig(
         **read_data(args.adapter_config_path)
@@ -85,7 +86,7 @@ if __name__=='__main__':
     model_name = args.model_name if args.model_name else args.base_model_name
     padding_side = PADDING_MAP[model_name] if model_name in PADDING_MAP.keys() else 'left'
     
-    model = AutoModelForCausalLM.from_pretrained(model_name, **model_config)
+    model = AutoModelForCausalLM.from_pretrained(model_name, **model_config, use_safetensors=args.use_safetensors)
     tokenizer = AutoTokenizer.from_pretrained(model_name, padding_side=padding_side)
     if not args.model_name: # if not using saved model
         tokenizer.pad_token = tokenizer.eos_token
@@ -135,10 +136,9 @@ if __name__=='__main__':
     trainer.train()
     torch.cuda.empty_cache()
     trainer.model = trainer.accelerator.unwrap_model(trainer.model)
-    if not args.safe_serialization:
-        model = trainer.model.merge_and_unload()
+    model = trainer.model.merge_and_unload()
     repo_id = f"{args.project_name}-{args.base_model_name.split('/')[-1]}"
-    model.push_to_hub(repo_id, safe_serialization=args.safe_serialization, token=HF_W_TOKEN)
+    model.push_to_hub(repo_id, safe_serialization=bool(args.safe_serialization), token=HF_W_TOKEN)
     trainer.tokenizer.push_to_hub(repo_id)
     # trainer.push_to_hub()
     #trainer.push_to_hub()

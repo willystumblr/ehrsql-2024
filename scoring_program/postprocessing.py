@@ -11,8 +11,13 @@ __precomputed_dict = {
                     'mean bp': (60.0, 110.0)
                                 }
 
-def post_process_sql(query):
+def post_process_sql(query:str):
 
+    idx = query.find("SELECT")
+    if idx!=-1:
+        query = query[idx:]
+    else:
+        pass
     query = re.sub('[ ]+', ' ', query.replace('\n', ' ')).strip()
     query = query.replace('> =', '>=').replace('< =', '<=').replace('! =', '!=')
 

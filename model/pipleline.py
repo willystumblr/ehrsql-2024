@@ -59,13 +59,13 @@ class Model():
                                      )
         # print(cls_outputs)
         # Get the predicted class probabilities
-        probabilities = cls_outputs.logits.softmax(dim=-1)
+        predicted_label_id = cls_outputs.logits.argmax(dim=-1)
 
         # Get the predicted label
-        predicted_label_id = probabilities.argmax(dim=-1)
+        # predicted_label_id = probabilities.argmax(dim=-1)
         # print(predicted_label_id)
         # predicted_labels = [self.model_cls.config.id2label[label_id.item()] for label_id in predicted_label_id]
-
+        # print(f"Logits: {cls_outputs.logits}")
         outputs = []
         for is_answerable in predicted_label_id:
             if is_answerable:

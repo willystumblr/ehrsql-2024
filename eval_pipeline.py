@@ -139,14 +139,14 @@ def generate_sql(model, tokenizer, tokenizer_cls, test_dataset, args, gen_config
                 # assert generated_outputs.logits.argmax(-1).items() == 0, AssertionError("Something went wrong! Classifier and Generator didn't work properly.")
                 assert preds[0]==0, AssertionError("Something went wrong! Classifier and Generator didn't work properly.")
                 pred = ['null']
-                entropy_list = [[0]]
+                entropy_list = [[0]*3]
             else:
                 raise NotImplementedError("Error occurred!")
             # Construct the output results for each prediction; assuming test batch size is always 1
             result = {
                 "id": batch['id'][0],
                 "question": batch['question'][0],
-                "pred": pred[0],
+                "pred": str(pred[0]),
                 "entropy": entropy_list[0],
             }
 
