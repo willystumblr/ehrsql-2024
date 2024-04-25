@@ -10,10 +10,11 @@ import wandb
 import random
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import LoraConfig, PeftConfig, PeftModel
+from eval_multi import get_threshold
 from utils.args import add_default_args
 import torch
 import argparse
-from utils.prompt import create_eval_prompt_batch, create_prompt, create_sample_prompt
+from utils.prompt import create_eval_prompt_batch, create_pipeline_prompt, create_prompt, create_sample_prompt
 from utils.data_io import write_json as write_label, build_dataset
 import pandas as pd
 from trl import AutoModelForCausalLMWithValueHead
@@ -29,10 +30,11 @@ from scoring_program.scoring_utils import execute_all, reliability_score, penali
 from scoring_program.postprocessing import post_process_sql
 from utils.settings import huggingface_login, set_seed
 import logging
+from unsloth import FastLanguageModel
+from model.pipleline import Model
+from eval_pipeline import generate_sql
 
-
-
-def generate_sql(model, tokenizer, test_dataset, args, gen_config=None):
+def generate_sql(model, tokenizer, tokenizer_cls, test_dataset, args, gen_config=None):
     """
     Generate SQL queries from a test dataset using a causal language model in batches.
 
@@ -68,110 +70,117 @@ def generate_sql(model, tokenizer, test_dataset, args, gen_config=None):
 
     # Iterate over batches
     for batch in tqdm(dataloader):
+        
         # Format each item in the batch to create prompts
-        prompts = create_eval_prompt_batch(batch)
+        cls_prompts, gen_prompts = create_pipeline_prompt(batch)
+        # print(cls_prompts)
         # Tokenize prompts for model input
         if args.test_batch_size<=1:
-            tokenized = tokenizer(prompts, return_tensors="pt")
-            inputs = tokenized['input_ids']
-            attention_mask = tokenized['attention_mask']
+            cls_inputs = tokenizer_cls(cls_prompts, return_tensors="pt", padding="max_length", truncation=True, max_length=args.max_seq_length)
+            gen_tokenized = tokenizer(gen_prompts, return_tensors="pt")
+            gen_inputs=gen_tokenized['input_ids']
+            attention_mask = gen_tokenized['attention_mask']
             
         else:
-            tokenized = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True, max_length=args.max_seq_length)
-            inputs = tokenized['input_ids']
-            attention_mask = tokenized['attention_mask']
+            cls_inputs = tokenizer_cls(cls_prompts, return_tensors="pt", padding=True, truncation=True, max_length=args.max_seq_length)
+            gen_tokenized = tokenizer(cls_prompts, return_tensors="pt", padding=True, truncation=True, max_length=args.max_seq_length)['input_ids']
+            gen_inputs=gen_tokenized['input_ids']
+            attention_mask = gen_tokenized['attention_mask']
+            
         if args.device == 'cuda':
-            inputs, attention_mask = inputs.cuda(), attention_mask.cuda()
+            gen_inputs, attention_mask = gen_inputs.cuda(), attention_mask.cuda()
 
         # Generate predictions with inference mode for efficiency
         with torch.inference_mode():
             generated_outputs = model.generate(
-                input_ids=inputs,
+                cls_input_ids=cls_inputs,
+                gen_input_ids=gen_inputs,
                 attention_mask=attention_mask,
                 output_scores=True,
                 return_dict_in_generate=True,
-                **gen_config
+                gen_config=gen_config
             )
+        
+        
+        assert len(generated_outputs) == len(batch['id']), AssertionError(f"len(generated_outputs): {len(generated_outputs)}, len(batch): {len(batch)}")
+        
+        for output in generated_outputs:
+            # print(output['type'])
+            if output['type'] == "text2sql":
+                # Move the generated sequences to the CPU if using CUDA.
+                preds = output["sequences"].cpu() if args.device == "cuda" else output["sequences"]
 
-        # Move the generated sequences to the CPU if using CUDA.
-        preds = generated_outputs["sequences"].cpu() if args.device == "cuda" else generated_outputs["sequences"]
-
-        # Process logits and calculate probabilities and entropies.
-        logits = torch.stack(generated_outputs["scores"], dim=1)[:: int(args.num_beams / args.num_samples)]
-        logits = logits.cpu() if args.device == "cuda" else logits
-        probs = torch.softmax(logits, dim=2).float()
-        log_probs = torch.log_softmax(logits, dim=2).float()
-        entropies = (torch.sum(probs * log_probs, axis=2) * (-1)).numpy()
+                # Process logits and calculate probabilities and entropies.
+                logits = torch.stack(output["scores"], dim=1)[:: int(args.num_beams / args.num_samples)]
+                logits = logits.cpu() if args.device == "cuda" else logits
+                probs = torch.softmax(logits, dim=2).float()
+                log_probs = torch.log_softmax(logits, dim=2).float()
+                entropies = (torch.sum(probs * log_probs, axis=2) * (-1)).numpy()
 
 
-        # Determine if the current batch is for testing or training.
-        is_test = True
-        if "label" in batch:
-            is_test = False
-            reals = batch["label"]
+            # Initialize lists to store predictions, probabilities, and entropies.
 
+                entropy_list = []
 
-        # Initialize lists to store predictions, probabilities, and entropies.
+                # Process each prediction in the batch.
+                for idx in range(len(preds)):
 
-        entropy_list = []
+                    pred_tensor = preds[idx][1:]
+                    entropy_truncated = entropies[idx].tolist()
 
-        # Process each prediction in the batch.
-        for idx in range(len(preds)):
+                    # Truncate the prediction at the end-of-sequence token, if present.
+                    if tokenizer.eos_token_id in pred_tensor:
+                        pred_eos_idx = torch.nonzero(pred_tensor == tokenizer.eos_token_id)[0].item()
+                        entropy_truncated = entropy_truncated[: pred_eos_idx + 1]
 
-            pred_tensor = preds[idx][1:]
-            entropy_truncated = entropies[idx].tolist()
+                    entropy_list.append(entropy_truncated)
 
-            # Truncate the prediction at the end-of-sequence token, if present.
-            if tokenizer.eos_token_id in pred_tensor:
-                pred_eos_idx = torch.nonzero(pred_tensor == tokenizer.eos_token_id)[0].item()
-                entropy_truncated = entropy_truncated[: pred_eos_idx + 1]
-
-            entropy_list.append(entropy_truncated)
-
-        pred_list = tokenizer.batch_decode(preds[:, inputs.shape[1]:], skip_special_tokens=True)
-        # print(pred_list)
-        # print(pred_list)
-
-        # Construct the output results for each prediction.
-        for idx in range(len(preds)):
+                pred = tokenizer.batch_decode(preds[:, gen_inputs.shape[1]:], skip_special_tokens=True)
+            elif output['type'] == 'answerability':
+                # print(output)
+                # pred_list = []
+                # entropy_list = []
+                logits = output.logits.cpu() if args.device == "cuda" else output.logits
+                preds = logits.argmax(-1).tolist()
+                # assert generated_outputs.logits.argmax(-1).items() == 0, AssertionError("Something went wrong! Classifier and Generator didn't work properly.")
+                assert preds[0]==0, AssertionError("Something went wrong! Classifier and Generator didn't work properly.")
+                pred = ['null\n']
+                entropy_list = [[0.0004147880245000124, 5.0285681936657056e-05, 3.618660002757679e-07]]
+            else:
+                raise NotImplementedError("Error occurred!")
+            # Construct the output results for each prediction; assuming test batch size is always 1
             result = {
-                "id": batch['id'][idx],
-                "question": batch['question'][idx],
-                "pred": pred_list[idx],
-                "entropy": entropy_list[idx],
+                "id": batch['id'][0],
+                "question": batch['question'][0],
+                "pred": str(pred[0]),
+                "entropy": entropy_list[0],
             }
 
-            # Include the real target output if it's training data.
-            if not is_test:
-                result["real"] = batch['label'][idx]
-
+            # print(output.keys)
+            # Determine if the current batch is for testing or training.
+            not_test = "label" in batch or "labels" in batch
+            if not_test:
+                # is_test = False
+                try:
+                    result["real"] = batch["label"][0]
+                except Exception as e:
+                    result["real"] = batch["labels"][0]
+                
+                if result['real'] == 'null':
+                    print(result)
+            
             results.append(result)
-        # print(pred_list[idx])
-        # print(f"sample target: {result['real']}, sample pred: {result['pred']}")
+
     return results
 
-def get_threshold(id2maxent, score_dict):
-    """
-    Determine the optimal threshold for filtering based on maximum entropy and scores.
-    """
-    values = []
-    scores = []
-    for key, val in id2maxent.items():
-        values.append(val)
-        scores.append(score_dict[key])
-
-    sorted_indices = np.argsort(values)
-    sorted_values = np.array(values)[sorted_indices]
-    sorted_scores = np.array(scores)[sorted_indices]
-
-    max_score, threshold = 0, -1
-    for idx in range(len(sorted_scores)):
-        cum_score = sum(sorted_scores[:idx+1])
-        if cum_score > max_score:
-            # print('cum_score > max_score')
-            max_score, threshold = cum_score, sorted_values[idx-1]
-
-    return threshold  # We abstain if maxent is greater than this threshold.
+def null_accuracy(label_dict:dict, pred_dict:dict):
+    nulls = []
+    for k in label_dict.keys():
+        if label_dict[k]=='null':
+            nulls.append(k)
+    null_hit = list(filter(lambda k: pred_dict[k]=='null' and k in nulls, pred_dict.keys()))
+    
+    return len(null_hit)/len(nulls)
 
 
 if __name__=="__main__":
@@ -197,27 +206,13 @@ if __name__=="__main__":
     # """ TODO: Fix this part... """
     huggingface_login()
 
-    model_config = dict(
-        device_map={"":Accelerator().local_process_index},
-        trust_remote_code=True,
-        torch_dtype=torch.bfloat16 if args.bf16 else "auto",
-        use_cache=False,
-    )
-
-    model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
-    logger.info(f"Model loaded: {model.config.architectures}")
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     
-    if args.add_adapter:
-        adapters = model.active_adapters()
-        model.load_adapter(args.adapter_path, adapter_name='new_adapter')
-        adapters.append('new_adapter')
-        model.set_adapter(adapters)
-        logger.info(f"Added Adapter: {model.active_adapters()}")
-        
-    
+    model = Model(args.model_name, args.model_name_2, args=args)
+    # model = AutoModelForCausalLM.from_pretrained(args.model_name, config=model_config)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name_2)
+    tokenizer_cls = AutoTokenizer.from_pretrained(args.model_name)
     # Perform inference on the validation set
-    valid_eval = generate_sql(model, tokenizer, valid_data, args)
+    valid_eval = generate_sql(model, tokenizer, tokenizer_cls, valid_data, args)
 
     # Post-process SQL queries for evaluation
     label = {sample['id']: post_process_sql(sample['real']) for sample in valid_eval}
@@ -239,6 +234,7 @@ if __name__=="__main__":
     accuracyN = penalize(scores, penalty=len(scores))
 
     logger.info(f"*** RS without filtering unanswerable queries: Accuracy0: {accuracy0}, Accuracy5: {accuracy5}, Accuracy10: {accuracy10}, AccuracyN: {accuracyN} ***")
+    logger.info(f"*** Null hit Accuracy: {null_accuracy(real_dict, pred_dict)} ***")
     # Calculate threshold for filtering unanswerable queries
     threshold = get_threshold(id2maxent, score_dict)
     logger.info(f"Threshold for filtering: {threshold}")
@@ -259,19 +255,5 @@ if __name__=="__main__":
 
     # Output the refined RS scores with abstention
     logger.info(f"*** RS with filtered unanswerable queries: Accuracy0: {accuracy0_filtered}, Accuracy5: {accuracy5_filtered}, Accuracy10: {accuracy10_filtered}, AccuracyN: {accuracyN_filtered} ***")
-    ##### Submission #####
-    test_eval = generate_sql(model, tokenizer, test_data, args)
-
-    label_y = {sample['id']: 'null' if threshold < max(sample['entropy']) else post_process_sql(sample['pred']) for sample in test_eval}
-    from utils.data_io import write_json as write_label
-
-    # Save the filtered predictions to a JSON file
-    run_name = model.config._name_or_path.split("/")[-1]+"-multi"
-    os.makedirs(os.path.join(RESULT_DIR, run_name), exist_ok=True)
-
-    SCORING_OUTPUT_DIR = os.path.join(os.path.join(RESULT_DIR, run_name), 'prediction.json')
-    write_label(SCORING_OUTPUT_DIR, label_y)
-
-    # Verify the file creation
-    logger.info(f"*** Listing files in RESULT_DIR: {os.path.join(RESULT_DIR, run_name)} ***")
-    logger.info(f"Done")
+    logger.info(f"*** Null hit Accuracy: {null_accuracy(real_dict, pred_dict)} ***")
+    

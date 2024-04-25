@@ -76,20 +76,25 @@ def generate_sql(model, tokenizer, tokenizer_cls, test_dataset, args, gen_config
         # Tokenize prompts for model input
         if args.test_batch_size<=1:
             cls_inputs = tokenizer_cls(cls_prompts, return_tensors="pt", padding="max_length", truncation=True, max_length=args.max_seq_length)
-            gen_inputs = tokenizer(gen_prompts, return_tensors="pt")['input_ids']
+            gen_tokenized = tokenizer(gen_prompts, return_tensors="pt")
+            gen_inputs=gen_tokenized['input_ids']
+            attention_mask = gen_tokenized['attention_mask']
             
         else:
             cls_inputs = tokenizer_cls(cls_prompts, return_tensors="pt", padding=True, truncation=True, max_length=args.max_seq_length)
-            gen_inputs = tokenizer(cls_prompts, return_tensors="pt", padding=True, truncation=True, max_length=args.max_seq_length)['input_ids']
-        
+            gen_tokenized = tokenizer(cls_prompts, return_tensors="pt", padding=True, truncation=True, max_length=args.max_seq_length)['input_ids']
+            gen_inputs=gen_tokenized['input_ids']
+            attention_mask = gen_tokenized['attention_mask']
+            
         if args.device == 'cuda':
-            gen_inputs = gen_inputs.cuda()
+            gen_inputs, attention_mask = gen_inputs.cuda(), attention_mask.cuda()
 
         # Generate predictions with inference mode for efficiency
         with torch.inference_mode():
             generated_outputs = model.generate(
                 cls_input_ids=cls_inputs,
                 gen_input_ids=gen_inputs,
+                attention_mask=attention_mask,
                 output_scores=True,
                 return_dict_in_generate=True,
                 gen_config=gen_config
@@ -138,8 +143,8 @@ def generate_sql(model, tokenizer, tokenizer_cls, test_dataset, args, gen_config
                 preds = logits.argmax(-1).tolist()
                 # assert generated_outputs.logits.argmax(-1).items() == 0, AssertionError("Something went wrong! Classifier and Generator didn't work properly.")
                 assert preds[0]==0, AssertionError("Something went wrong! Classifier and Generator didn't work properly.")
-                pred = ['null']
-                entropy_list = [[0]*3]
+                pred = ['null\n']
+                entropy_list = [[0.0004147880245000124, 5.0285681936657056e-05, 3.618660002757679e-07]]
             else:
                 raise NotImplementedError("Error occurred!")
             # Construct the output results for each prediction; assuming test batch size is always 1
@@ -152,16 +157,17 @@ def generate_sql(model, tokenizer, tokenizer_cls, test_dataset, args, gen_config
 
             # print(output.keys)
             # Determine if the current batch is for testing or training.
-            is_test = True
-            if "label" in batch or "labels" in batch:
-                is_test = False
+            not_test = "label" in batch or "labels" in batch
+            if not_test:
+                # is_test = False
                 try:
-                    reals = batch["label"]
+                    result["real"] = batch["label"][0]
                 except Exception as e:
-                    reals = batch["labels"]
-                    
-            if not is_test:
-                result["real"] = reals[0]
+                    result["real"] = batch["labels"][0]
+                
+                if result['real'] == 'null':
+                    print(result)
+            
             results.append(result)
 
     return results

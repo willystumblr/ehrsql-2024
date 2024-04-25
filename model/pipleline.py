@@ -27,12 +27,14 @@ class Model():
             torch_dtype=torch.bfloat16 if args.bf16 else "auto",
             use_cache=False,
         )
-        model_cls = AutoModelForSequenceClassification.from_pretrained(args.base_model_name,                                                                             
+        self.args = args
+        model_cls = AutoModelForSequenceClassification.from_pretrained(self.args.base_model_name,                                                                             
                                                                             **cls_config)
         self.model_cls = PeftModel.from_pretrained(model_cls, classifier)
-        self.model_gen = AutoModelForCausalLM.from_pretrained(generator, **gen_config)
-        self.args = args
-        # print(self.model_cls)
+        model_gen = AutoModelForCausalLM.from_pretrained('meta-llama/Llama-2-7b-hf', **gen_config)
+        self.model_gen = PeftModel.from_pretrained(model_gen, generator)
+        
+        print(f"CLS model: {self.model_cls.config.architectures} \n GEN model: {self.model_gen.config.architectures} ")
         
     def to(self, device):
         self.model_cls.to(device)
@@ -46,16 +48,17 @@ class Model():
         self,
         cls_input_ids,
         gen_input_ids,
+        attention_mask,
         gen_config,
         output_scores=True,
         return_dict_in_generate=True,
         # **kwargs
     ):
         # print(cls_input_ids)
-        input_ids, attention_mask = cls_input_ids['input_ids'].to(self.args.device), cls_input_ids['attention_mask'].to(self.args.device)
+        input_ids, attention_mask_cls = cls_input_ids['input_ids'].to(self.args.device), cls_input_ids['attention_mask'].to(self.args.device)
         cls_outputs = self.model_cls(
                                      input_ids=input_ids,
-                                     attention_mask=attention_mask
+                                     attention_mask=attention_mask_cls
                                      )
         # print(cls_outputs)
         # Get the predicted class probabilities
@@ -72,6 +75,7 @@ class Model():
                 with torch.inference_mode():
                     generated_outputs = self.model_gen.generate(
                         input_ids=gen_input_ids,
+                        attention_mask=attention_mask,
                         output_scores=output_scores,
                         return_dict_in_generate=return_dict_in_generate,
                         **gen_config

@@ -29,6 +29,7 @@ from scoring_program.scoring_utils import execute_all, reliability_score, penali
 from scoring_program.postprocessing import post_process_sql
 from utils.settings import huggingface_login, set_seed
 import logging
+from null_hit_pipeline import null_accuracy
 
 
 
@@ -237,8 +238,10 @@ if __name__=="__main__":
     accuracy5 = penalize(scores, penalty=5)
     accuracy10 = penalize(scores, penalty=10)
     accuracyN = penalize(scores, penalty=len(scores))
-
+    
     logger.info(f"*** RS without filtering unanswerable queries: Accuracy0: {accuracy0}, Accuracy5: {accuracy5}, Accuracy10: {accuracy10}, AccuracyN: {accuracyN} ***")
+    logger.info(f"*** Null hit Accuracy: {null_accuracy(real_dict, pred_dict)} ***")
+    
     # Calculate threshold for filtering unanswerable queries
     threshold = get_threshold(id2maxent, score_dict)
     logger.info(f"Threshold for filtering: {threshold}")
@@ -259,19 +262,20 @@ if __name__=="__main__":
 
     # Output the refined RS scores with abstention
     logger.info(f"*** RS with filtered unanswerable queries: Accuracy0: {accuracy0_filtered}, Accuracy5: {accuracy5_filtered}, Accuracy10: {accuracy10_filtered}, AccuracyN: {accuracyN_filtered} ***")
+    logger.info(f"*** Null hit Accuracy: {null_accuracy(real_dict, pred_dict)} ***")
     ##### Submission #####
-    test_eval = generate_sql(model, tokenizer, test_data, args)
+    # test_eval = generate_sql(model, tokenizer, test_data, args)
 
-    label_y = {sample['id']: 'null' if threshold < max(sample['entropy']) else post_process_sql(sample['pred']) for sample in test_eval}
-    from utils.data_io import write_json as write_label
+    # label_y = {sample['id']: 'null' if threshold < max(sample['entropy']) else post_process_sql(sample['pred']) for sample in test_eval}
+    # from utils.data_io import write_json as write_label
 
-    # Save the filtered predictions to a JSON file
-    run_name = model.config._name_or_path.split("/")[-1]+"-multi"
-    os.makedirs(os.path.join(RESULT_DIR, run_name), exist_ok=True)
+    # # Save the filtered predictions to a JSON file
+    # run_name = model.config._name_or_path.split("/")[-1]+"-multi"
+    # os.makedirs(os.path.join(RESULT_DIR, run_name), exist_ok=True)
 
-    SCORING_OUTPUT_DIR = os.path.join(os.path.join(RESULT_DIR, run_name), 'prediction.json')
-    write_label(SCORING_OUTPUT_DIR, label_y)
+    # SCORING_OUTPUT_DIR = os.path.join(os.path.join(RESULT_DIR, run_name), 'prediction.json')
+    # write_label(SCORING_OUTPUT_DIR, label_y)
 
-    # Verify the file creation
-    logger.info(f"*** Listing files in RESULT_DIR: {os.path.join(RESULT_DIR, run_name)} ***")
-    logger.info(f"Done")
+    # # Verify the file creation
+    # logger.info(f"*** Listing files in RESULT_DIR: {os.path.join(RESULT_DIR, run_name)} ***")
+    # logger.info(f"Done")

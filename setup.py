@@ -11,9 +11,9 @@ setup(
         'peft==0.9.0',
         'trl==0.7.11',
         'wandb==0.16.3',
-        'xformers==0.0.24',
+        # 'xformers==0.0.24',
         'accelerate==0.27.2',
         'bitsandbytes==0.42.0',
-        'unsloth[conda] @ git+https://github.com/unslothai/unsloth.git'
+        #'unsloth[conda] @ git+https://github.com/unslothai/unsloth.git'
     ]
 )
