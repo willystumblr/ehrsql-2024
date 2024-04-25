@@ -7,10 +7,8 @@ from sklearn.model_selection import train_test_split
 from utils.data_io import (
     DB_ID,
     BASE_DATA_DIR,
-    TRAIN_ANSWER_PATH,
-    TRAIN_DATA_PATH,
-    TRAIN_LABEL_PATH,
-    VALID_DATA_PATH,
+    TRAIN_DATA_DIR,
+    VALID_DATA_DIR,
 )
 
 
@@ -18,10 +16,10 @@ from utils.data_io import read_json as read_data
 from utils.data_io import write_json as write_data
 
 # Load train and validation sets
-train_data = read_data(TRAIN_DATA_PATH)
-train_label = read_data(TRAIN_LABEL_PATH)
-train_answer = read_data(TRAIN_ANSWER_PATH)
-valid_data = read_data(VALID_DATA_PATH)
+train_data = read_data(os.path.join(TRAIN_DATA_DIR, 'data.json'))
+train_label = read_data(os.path.join(TRAIN_DATA_DIR, 'label.json'))
+train_answer = read_data(os.path.join(TRAIN_DATA_DIR, 'answer.json'))
+valid_data = read_data(os.path.join(VALID_DATA_DIR, 'data.json'))
 
 
 
@@ -31,7 +29,7 @@ stratify = ['unans' if train_label[id_]=='null' else 'ans' for id_ in list(train
 # Split the original training data into new training and validation sets, while maintaining the distribution
 new_train_keys, new_valid_keys = train_test_split(
     list(train_label.keys()),
-    train_size=0.8,
+    train_size=0.7,
     random_state=42,
     stratify=stratify
 )
