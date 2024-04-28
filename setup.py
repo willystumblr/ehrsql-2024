@@ -5,6 +5,7 @@ setup(
     version='0.1',
     packages=find_packages(include=['preprocess', 'scoring_program', 'utils', 'ingestion_program']),
     install_requires=[
+        'evaluate',
         'sqlparse==0.4.4',
         'scikit-learn==1.4.1.post1', 
         'transformers==4.38.2',

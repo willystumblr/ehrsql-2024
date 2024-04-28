@@ -18,9 +18,9 @@ TEST_DATA_DIR = os.path.join(BASE_DATA_DIR, 'test')
 DB_PATH = os.path.join(BASE_DATA_DIR, f'{DB_ID}.sqlite')                # Database path
 
 # Will be deprecated during test phase
-NEW_TRAIN_DIR = os.path.join(BASE_DATA_DIR, '__train')
-NEW_VALID_DIR = os.path.join(BASE_DATA_DIR, '__valid')
-NEW_TEST_DIR = os.path.join(BASE_DATA_DIR, 'valid')
+# NEW_TRAIN_DIR = os.path.join(BASE_DATA_DIR, '__train')
+# NEW_VALID_DIR = os.path.join(BASE_DATA_DIR, '__valid')
+# NEW_TEST_DIR = os.path.join(BASE_DATA_DIR, 'valid')
 TABLES = json.load(open(os.path.join(BASE_DATA_DIR, 'mimic_iv.json')))
 
 def read_json(path):
@@ -41,12 +41,7 @@ def _unanswerable_query_formatter(example):
 
 def build_dataset(args):
     # prepare data
-    if args.phase == 'dev':
-        train_path, valid_path, test_path = NEW_TRAIN_DIR, NEW_VALID_DIR, NEW_TEST_DIR  
-    elif args.phase == 'dev_final':
-        train_path, valid_path, test_path = TRAIN_DATA_DIR, VALID_DATA_DIR, None
-    else:
-        train_path, valid_path, test_path = TRAIN_DATA_DIR, NEW_VALID_DIR, TEST_DATA_DIR
+    train_path, valid_path, test_path = TRAIN_DATA_DIR, VALID_DATA_DIR, TEST_DATA_DIR
     
     
     new_train_data = read_json(os.path.join(train_path, 'data.json'))
