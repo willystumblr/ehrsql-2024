@@ -29,7 +29,6 @@ from scoring_program.scoring_utils import execute_all, reliability_score, penali
 from scoring_program.postprocessing import post_process_sql
 from utils.settings import huggingface_login, set_seed
 import logging
-from unsloth import FastLanguageModel
 from model.pipleline import Model
 
 

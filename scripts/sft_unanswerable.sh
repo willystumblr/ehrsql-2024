@@ -12,5 +12,4 @@ python sft_cls.py \
     --evaluation_strategy=epoch \
     --test_batch_size=1 \
     --save_strategy=epoch \
-    --adapter_config_path=adapter_config/roberta.json \
-    --phase=dev
+    --adapter_config_path=adapter_config/roberta.json

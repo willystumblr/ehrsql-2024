@@ -61,57 +61,56 @@ def build_dataset(args):
 
     train_data = Dataset.from_list(train_dataset)
     ### TODO: leave it for now..
-    if args.phase=='dev' or args.phase=='test':
-        new_valid_data = read_json(os.path.join(valid_path, 'data.json'))
-        new_valid_label = read_json(os.path.join(valid_path, "label.json"))
-        if args.train_type=='text2sql':
-            valid_dataset = [{"id": d['id'], "type":'text2sql', "question":d['question'], "label":l[1]} for d, l in zip(new_valid_data['data'], new_valid_label.items())]
-        elif args.train_type=='unanswerable':
-            valid_dataset = []
-            for d, l in zip(new_valid_data['data'], new_valid_label.items()):
-                example = {"id": d['id'], "type":'unanswerable',"question":d['question']}
-                example['labels']=0 if l[1] =='null' else 1
-                example['text'] = _unanswerable_query_formatter(example)
-                valid_dataset.append(example)
-        else:
-            raise ValueError("Unsupported train_type: should be either 'text2sql' or 'unanswerable'.")
-        
-        valid_data = Dataset.from_list(valid_dataset)
-        
-        """valid data
-        {
-            "id":
-            "type":
-            "question":
-            "label":
-        }
-        or
-        {
-            "id":
-            "type":
-            "question":
-            "text":
-            "labels"
-        }
-        
-        """
-
-        
-        new_test_data = read_json(os.path.join(test_path, "data.json"))
-        test_dataset = [{"id": d['id'], "type":'text2sql', "question":d['question']} for d in new_test_data['data']]
-        
-        """
-        {
-            "id":
-            "type":
-            "question":
-        }
-        """
-        
-        test_data = Dataset.from_list(test_dataset)
+    
+    new_valid_data = read_json(os.path.join(valid_path, 'data.json'))
+    new_valid_label = read_json(os.path.join(valid_path, "label.json"))
+    if args.train_type=='text2sql':
+        valid_dataset = [{"id": d['id'], "type":'text2sql', "question":d['question'], "label":l[1]} for d, l in zip(new_valid_data['data'], new_valid_label.items())]
+    elif args.train_type=='unanswerable':
+        valid_dataset = []
+        for d, l in zip(new_valid_data['data'], new_valid_label.items()):
+            example = {"id": d['id'], "type":'unanswerable',"question":d['question']}
+            example['labels']=0 if l[1] =='null' else 1
+            example['text'] = _unanswerable_query_formatter(example)
+            valid_dataset.append(example)
     else:
-        valid_data=None
-        test_data=None 
+        raise ValueError("Unsupported train_type: should be either 'text2sql' or 'unanswerable'.")
+    
+    valid_data = Dataset.from_list(valid_dataset)
+    
+    """valid data
+    {
+        "id":
+        "type":
+        "question":
+        "label":
+    }
+    or
+    {
+        "id":
+        "type":
+        "question":
+        "text":
+        "labels"
+    }
+    
+    """
+
+    
+    new_test_data = read_json(os.path.join(test_path, "data.json"))
+    new_test_label = read_json(os.path.join(test_path, "label.json"))
+    test_dataset = [{"id": d['id'], "type":'text2sql', "question":d['question'], "label":l[1]} for d, l in zip(new_test_data['data'], new_test_label.items())]
+    
+    
+    """
+    {
+        "id":
+        "type":
+        "question":
+    }
+    """
+    
+    test_data = Dataset.from_list(test_dataset)
     
     
     return train_data, valid_data, test_data

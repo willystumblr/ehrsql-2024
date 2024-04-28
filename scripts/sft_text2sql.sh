@@ -1,6 +1,6 @@
 python sft_main.py \
     --train_type=text2sql \
-    --base_model_name=google/gemma-2b-it \
+    --base_model_name=metallama/Llama-2-7b-hf \
     --project_name=ehrsql-2024-sft-text2sql \
     --train_epochs=3 \
     --train_batch_size=8 \
@@ -12,5 +12,4 @@ python sft_main.py \
     --evaluation_strategy=epoch \
     --test_batch_size=1 \
     --save_strategy=epoch \
-    --adapter_config_path=adapter_config/gemma.json \
-    --phase=dev
+    --adapter_config_path=adapter_config/llama.json
